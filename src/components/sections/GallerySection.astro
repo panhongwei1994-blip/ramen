@@ -25,7 +25,7 @@ const [heroImage, ...secondaryImages] = featured;
   <div class="gallery-copy">
     <div>
       <p class="eyebrow">{content.brand}</p>
-      <h2 class="section-title">{content.galleryTitle}</h2>
+      <h2 class="section-title gallery-title">{content.galleryTitle}</h2>
     </div>
     <p class="section-copy">{content.galleryBody}</p>
   </div>
@@ -70,6 +70,7 @@ const [heroImage, ...secondaryImages] = featured;
   }
   .gallery-copy .section-title {
     max-width: 11ch;
+    text-wrap: balance;
   }
   .gallery-copy .section-copy {
     max-width: 40rem;
@@ -145,6 +146,10 @@ const [heroImage, ...secondaryImages] = featured;
     }
   }
   @media (max-width: 640px) {
+    .gallery-title {
+      max-width: 16ch;
+      font-size: clamp(1.75rem, 6.4vw, 2.35rem);
+    }
     .gallery-rail {
       grid-template-columns: 1fr;
     }
