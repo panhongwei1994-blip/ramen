@@ -29,10 +29,10 @@ export const siteContent = {
     metaTitle: "Sumi Ramen | Tokyo-Style Ramen Bar",
     metaDescription:
       "Late-night Japanese ramen with slow-simmered broth, springy noodles, crisp small plates, and fast checkout.",
-    heroBadge: "Slow broth. Open late.",
-    heroTitle: "Tokyo midnight ramen.",
+    heroBadge: "Slow-simmered broth. Fast hands. Open untill the early hours.",
+    heroTitle: "Authentic Tokyo midnight ramen. Crafted bowl by bowl.",
     heroBody:
-      "Silky broth, springy noodles, and bowls finished fast.",
+      "16-hour silky pork broth, springy artisan noodles, and flame-finished dark soy chashu. A premium late-night izakaya experience delivered without the wait.",
     orderNow: "Order Now",
     cartNav: "Cart",
     viewMenu: "View Menu",
@@ -126,10 +126,10 @@ export const siteContent = {
     metaTitle: "Sumi Ramen | Ramen Bar im Tokio-Stil",
     metaDescription:
       "Japanische Late-Night-Ramen mit lang gekochter Brühe, elastischen Nudeln und schnellem Checkout.",
-    heroBadge: "Lang gekochte Brühe. Bis spät offen.",
-    heroTitle: "Tokio Mitternachts-Ramen.",
+    heroBadge: "Lang gekochte Brühe. Schneller Service. Bis spät offen.",
+    heroTitle: "Tokio Mitternachts-Ramen, Schale für Schale gebaut.",
     heroBody:
-      "Seidige Brühe, federnde Nudeln und schnell angerichtete Schalen.",
+      "Seidige Brühe, federnde Nudeln, offen geflämmte Toppings und ein Bestellfluss, der so präzise ist wie die Küche.",
     orderNow: "Jetzt bestellen",
     cartNav: "Warenkorb",
     viewMenu: "Menü ansehen",
@@ -223,10 +223,10 @@ export const siteContent = {
     metaTitle: "Sumi Ramen | Barra de ramen estilo Tokio",
     metaDescription:
       "Ramen japonés nocturno con caldo cocido lentamente, fideos elásticos y checkout rápido.",
-    heroBadge: "Caldo lento. Abierto hasta tarde.",
-    heroTitle: "Ramen de medianoche estilo Tokio.",
+    heroBadge: "Caldo lento. Manos rápidas. Abierto hasta tarde.",
+    heroTitle: "Ramen de medianoche estilo Tokio, bowl por bowl.",
     heroBody:
-      "Caldo sedoso, fideos con mordida y bowls servidos con rapidez.",
+      "Caldo sedoso, fideos con mordida, toppings flameados y una experiencia de pedido tan ágil como la cocina.",
     orderNow: "Pedir ahora",
     cartNav: "Carrito",
     viewMenu: "Ver menú",
@@ -320,10 +320,10 @@ export const siteContent = {
     metaTitle: "Sumi Ramen | Bar à ramen esprit Tokyo",
     metaDescription:
       "Ramen japonais de nuit avec bouillon mijoté longtemps, nouilles nerveuses et checkout rapide.",
-    heroBadge: "Bouillon lent. Ouvert tard.",
-    heroTitle: "Le ramen de minuit façon Tokyo.",
+    heroBadge: "Bouillon lent. Gestes rapides. Ouvert tard.",
+    heroTitle: "Le ramen de minuit façon Tokyo, bol après bol.",
     heroBody:
-      "Bouillon soyeux, nouilles nerveuses et bols dressés rapidement.",
+      "Bouillon soyeux, nouilles toniques, toppings flambés et une commande aussi nette que le service en cuisine.",
     orderNow: "Commander",
     cartNav: "Panier",
     viewMenu: "Voir le menu",
@@ -417,10 +417,10 @@ export const siteContent = {
     metaTitle: "Sumi Ramen | Ramenbar in Tokyo-stijl",
     metaDescription:
       "Japanse late-night ramen met langzaam getrokken bouillon, veerkrachtige noedels en snelle checkout.",
-    heroBadge: "Langzame bouillon. Laat open.",
-    heroTitle: "Tokyo midnight ramen.",
+    heroBadge: "Langzame bouillon. Snelle service. Laat open.",
+    heroTitle: "Tokyo midnight ramen, kom voor kom opgebouwd.",
     heroBody:
-      "Zijdezachte bouillon, veerkrachtige noedels en snel afgewerkte bowls.",
+      "Zijdezachte bouillon, veerkrachtige noedels, afgebrande toppings en een bestelervaring die net zo strak aanvoelt als de keuken.",
     orderNow: "Bestel nu",
     cartNav: "Winkelwagen",
     viewMenu: "Bekijk menu",
