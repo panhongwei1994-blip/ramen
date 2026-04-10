@@ -1,0 +1,420 @@
+---
+import "@/styles/global.css";
+import { getContent, getLocaleUrls, getRestaurantSchema, normalizeLocale } from "@/data/site";
+
+interface Props {
+  lang?: string;
+}
+
+const lang = normalizeLocale(Astro.props.lang);
+const content = getContent(lang);
+const localeUrls = getLocaleUrls(lang);
+const siteUrl = Astro.site ?? new URL("https://sora-site.panhongwei1994.workers.dev");
+const canonicalPath = lang === "en" ? "/" : `/${lang}`;
+const canonical = new URL(canonicalPath, siteUrl).toString();
+const socialImage = new URL("/ramen/hero-poster.svg", siteUrl).toString();
+const schema = getRestaurantSchema(siteUrl.toString(), lang);
+---
+
+<!doctype html>
+<html lang={lang} data-brand={content.brand}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{content.metaTitle}</title>
+    <meta name="description" content={content.metaDescription} />
+    <meta property="og:title" content={content.metaTitle} />
+    <meta property="og:description" content={content.metaDescription} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={content.metaTitle} />
+    <meta name="twitter:description" content={content.metaDescription} />
+    <meta name="theme-color" content="#120e0d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={content.brand} />
+    <link rel="canonical" href={canonical} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-shell card">
+        <a href={lang === "en" ? "/" : `/${lang}`} class="brand-mark">
+          <img src="/sushi/logo.webp" alt={`${content.brand} Logo`} class="brand-logo" />
+          <span>{content.brand}</span>
+        </a>
+        <div class="header-actions">
+          <details class="locale-menu">
+            <summary class="locale-trigger">
+              <span>{lang.toUpperCase()}</span>
+              <span class="locale-caret">▾</span>
+            </summary>
+            <div class="locale-popover">
+              {localeUrls.map((item) => (
+                <a
+                  href={item.url}
+                  class:list={["locale-option", { active: item.active }]}
+                >
+                  {item.locale.toUpperCase()}
+                </a>
+              ))}
+            </div>
+          </details>
+          <button type="button" class="header-order" onclick={`window.dispatchEvent(new CustomEvent('open-cart'))`}>
+            {content.cartNav}
+          </button>
+        </div>
+      </div>
+    </header>
+    <slot />
+    <div class="install-modal" id="install-modal" hidden>
+      <div class="install-backdrop" data-install-close></div>
+      <div class="install-dialog card" role="dialog" aria-modal="true" aria-labelledby="install-title">
+        <button class="install-close" type="button" data-install-close aria-label="Close">×</button>
+        <img src="/sushi/logo.webp" alt={content.brand} class="install-logo" />
+        <p class="eyebrow">{content.brand}</p>
+        <h3 id="install-title">Add to your home screen</h3>
+        <p class="install-copy" id="install-copy"></p>
+        <div class="install-steps" id="install-steps"></div>
+        <button class="primary-button install-confirm" type="button" data-install-close>Close</button>
+      </div>
+    </div>
+    <script is:inline>
+      const brandName = document.documentElement.dataset.brand || "App";
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+
+      let deferredInstallPrompt = null;
+
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+      });
+
+      const isIosSafari = () => {
+        const ua = window.navigator.userAgent;
+        const isIOS = /iphone|ipad|ipod/i.test(ua);
+        const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
+        return isIOS && isSafari;
+      };
+
+      const isStandalone = () =>
+        window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+
+      const modal = document.getElementById("install-modal");
+      const copyNode = document.getElementById("install-copy");
+      const stepsNode = document.getElementById("install-steps");
+
+      const showInstallModal = (variant) => {
+        if (!(modal instanceof HTMLElement) || !(copyNode instanceof HTMLElement) || !(stepsNode instanceof HTMLElement)) return;
+
+        const ios = variant === "ios";
+        copyNode.textContent = ios
+          ? `Install ${brandName} to open it like an app from your iPhone home screen.`
+          : `Install ${brandName} for faster access from your device home screen.`;
+        stepsNode.innerHTML = ios
+          ? `
+            <div class="install-step"><span class="install-step-number">1</span><p>Tap the Share button in Safari.</p></div>
+            <div class="install-step"><span class="install-step-number">2</span><p>Select Add to Home Screen.</p></div>
+            <div class="install-step"><span class="install-step-number">3</span><p>Save it as ${brandName}.</p></div>
+          `
+          : `
+            <div class="install-step"><span class="install-step-number">1</span><p>Open your browser menu.</p></div>
+            <div class="install-step"><span class="install-step-number">2</span><p>Choose Install App or Add to Home Screen.</p></div>
+            <div class="install-step"><span class="install-step-number">3</span><p>Save it as ${brandName}.</p></div>
+          `;
+        modal.hidden = false;
+        document.documentElement.style.overflow = "hidden";
+      };
+
+      const closeInstallModal = () => {
+        if (!(modal instanceof HTMLElement)) return;
+        modal.hidden = true;
+        document.documentElement.style.overflow = "";
+      };
+
+      const installApp = async () => {
+        if (isStandalone()) return;
+
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          await deferredInstallPrompt.userChoice.catch(() => {});
+          deferredInstallPrompt = null;
+          return;
+        }
+
+        if (isIosSafari()) {
+          showInstallModal("ios");
+          return;
+        }
+
+        showInstallModal("generic");
+      };
+
+      document.addEventListener("click", (event) => {
+        const trigger = event.target instanceof Element ? event.target.closest("[data-a2hs-trigger]") : null;
+        if (!(trigger instanceof HTMLButtonElement)) return;
+        event.preventDefault();
+        void installApp();
+      });
+
+      document.addEventListener("click", (event) => {
+        const closeTrigger = event.target instanceof Element ? event.target.closest("[data-install-close]") : null;
+        if (!closeTrigger) return;
+        event.preventDefault();
+        closeInstallModal();
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: fixed;
+    inset: 16px 16px auto;
+    z-index: 30;
+  }
+  .header-shell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 999px;
+    backdrop-filter: blur(18px);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.022)),
+      rgba(20,15,13,.76);
+  }
+  .brand-mark,
+  .locale-trigger,
+  .locale-option,
+  .header-order {
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+  }
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--gold-soft);
+  }
+  .brand-logo {
+    height: 42px;
+    width: 42px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(241,182,107,.24);
+    box-shadow: 0 10px 24px rgba(195,75,45,.2);
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .locale-menu,
+  .locale-trigger {
+    border-radius: 999px;
+    color: rgba(246,239,230,.68);
+  }
+  .locale-menu {
+    position: relative;
+  }
+  .locale-trigger {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.03);
+    cursor: pointer;
+  }
+  .locale-trigger::-webkit-details-marker {
+    display: none;
+  }
+  .locale-caret {
+    color: rgba(244,213,154,.82);
+    font-size: 11px;
+  }
+  .locale-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 88px;
+    display: grid;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.08);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)),
+      rgba(10,12,18,.96);
+    box-shadow: 0 18px 48px rgba(0,0,0,.34);
+  }
+  .locale-option {
+    padding: 10px 12px;
+    border-radius: 14px;
+    color: rgba(246,239,230,.78);
+    text-align: center;
+  }
+  .locale-option.active,
+  .locale-option:hover {
+    background: rgba(212,165,74,.14);
+    color: var(--gold-soft);
+  }
+  .header-order {
+    border: 0;
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+    color: #180d08;
+    font-size: 11px;
+    letter-spacing: .18em;
+  }
+  .install-modal[hidden] {
+    display: none;
+  }
+  .install-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+  }
+  .install-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 6, 10, .78);
+    backdrop-filter: blur(12px);
+  }
+  .install-dialog {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(420px, calc(100vw - 24px));
+    padding: 28px;
+    text-align: center;
+  }
+  .install-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,.05);
+    color: var(--text);
+  }
+  .install-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    object-fit: cover;
+    border: 1px solid rgba(212,165,74,.28);
+    box-shadow: 0 10px 24px rgba(212,165,74,.2);
+  }
+  .install-dialog h3 {
+    margin: 12px 0 0;
+    font-size: 2rem;
+  }
+  .install-copy {
+    margin: 14px 0 0;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .install-steps {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+    text-align: left;
+  }
+  .install-step {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .install-step-number {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(212,165,74,.14);
+    color: var(--gold-soft);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .install-step p {
+    margin: 2px 0 0;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .install-confirm {
+    width: 100%;
+    margin-top: 18px;
+  }
+  @media (max-width: 860px) {
+    .header-shell {
+      flex-direction: row;
+      align-items: center;
+      border-radius: 28px;
+      padding: 10px 12px;
+    }
+    .header-actions {
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    .locale-popover {
+      right: auto;
+      left: 0;
+    }
+    .brand-mark {
+      font-size: 11px;
+      letter-spacing: .18em;
+    }
+    .brand-logo {
+      height: 38px;
+      width: 38px;
+      border-radius: 10px;
+    }
+    .locale-trigger,
+    .header-order {
+      white-space: nowrap;
+    }
+    .locale-trigger {
+      padding: 8px 12px;
+    }
+    .header-order {
+      padding: 8px 12px;
+    }
+    .install-dialog {
+      width: calc(100vw - 16px);
+      padding: 24px 18px 18px;
+      top: auto;
+      bottom: 8px;
+      transform: translateX(-50%);
+      border-radius: 24px;
+    }
+  }
+</style>

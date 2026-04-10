@@ -1,0 +1,183 @@
+---
+import { getContent, normalizeLocale } from "@/data/site";
+
+const lang = normalizeLocale(Astro.props.lang);
+const content = getContent(lang);
+---
+
+<footer class="footer-shell">
+  <div class="container footer-top card">
+    <div class="footer-brand">
+      <div class="brand-row">
+        <img src="/sushi/logo.webp" alt={`${content.brand} Logo`} class="brand-logo" />
+        <p class="eyebrow">{content.brand}</p>
+      </div>
+      <h2>{content.footerHeading}</h2>
+      <div class="footer-meta">
+        {content.footerMeta.map((item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+      <p>{content.footerStory}</p>
+    </div>
+
+    <div class="footer-grid">
+      <section>
+        <p class="eyebrow">Visit</p>
+        <p>{content.locationAddress}</p>
+      </section>
+      <section>
+        <p class="eyebrow">Contact</p>
+        <p><a href={`tel:${content.phoneLabel}`}>{content.phoneLabel}</a></p>
+        <p><a href={`mailto:${content.email}`}>{content.email}</a></p>
+      </section>
+      <section>
+        <p class="eyebrow">Hours</p>
+        <p>{content.hoursWeek}</p>
+        <p>{content.hoursWeekend}</p>
+      </section>
+      <section>
+        <p class="eyebrow">Menu</p>
+        {content.footerLinks.map((item) => (
+          <p>{item}</p>
+        ))}
+      </section>
+    </div>
+  </div>
+
+  <div class="container footer-bottom">
+    <p>© 2026 {content.brand}</p>
+    <div>
+      <a href="#order-menu">Menu</a>
+      <a href="#order-menu">Order</a>
+      <a href="#reviews">Reviews</a>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer-shell {
+    padding: 0 0 42px;
+  }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 36px;
+    border-radius: 36px;
+    background:
+      radial-gradient(circle at top left, rgba(195,75,45,.15), transparent 24%),
+      linear-gradient(180deg, rgba(255,245,232,.05), rgba(255,245,232,.02)),
+      rgba(20, 15, 13, .95);
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .brand-logo {
+    height: 44px;
+    width: 44px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(212,165,74,.28);
+    box-shadow: 0 10px 24px rgba(212,165,74,.2);
+  }
+  .footer-brand h2 {
+    margin: 0;
+    font-size: clamp(2.4rem, 4vw, 4.5rem);
+    line-height: .95;
+    letter-spacing: -.05em;
+  }
+  .footer-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .footer-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.03);
+    color: rgba(246,239,230,.7);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .footer-brand p:last-of-type {
+    max-width: 44rem;
+    margin: 16px 0 0;
+    color: var(--muted);
+    line-height: 1.8;
+    font-size: 1.04rem;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .footer-grid section {
+    padding: 18px;
+    border-radius: 24px;
+    background: rgba(255,245,232,.035);
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .footer-grid p {
+    margin: 0 0 10px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .footer-grid .eyebrow {
+    margin-bottom: 12px;
+  }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    padding-top: 20px;
+    color: rgba(246,239,230,.54);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .footer-bottom p {
+    margin: 0;
+  }
+  .footer-bottom div {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 900px) {
+    .footer-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 560px) {
+    .footer-top {
+      padding: 24px;
+    }
+    .footer-meta span {
+      width: 100%;
+      justify-content: center;
+    }
+    .footer-grid {
+      grid-template-columns: 1fr;
+    }
+    .footer-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

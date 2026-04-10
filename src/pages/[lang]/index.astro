@@ -1,0 +1,18 @@
+---
+import BaseLayout from "@/components/layout/BaseLayout.astro";
+import HeroSection from "@/components/sections/HeroSection.astro";
+import FutureSection from "@/components/sections/FutureSection.astro";
+import ReviewsSection from "@/components/sections/ReviewsSection.astro";
+import FooterSection from "@/components/sections/FooterSection.astro";
+import OrderingApp from "@/components/commerce/OrderingApp.vue";
+
+const { lang } = Astro.params;
+---
+
+<BaseLayout lang={lang}>
+  <HeroSection lang={lang} />
+  <OrderingApp client:load lang={lang} />
+  <FutureSection lang={lang} />
+  <ReviewsSection lang={lang} />
+  <FooterSection lang={lang} />
+</BaseLayout>

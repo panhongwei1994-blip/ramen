@@ -1,0 +1,23 @@
+{
+  "name": "sumi-ramen-site",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "postbuild": "printf '_worker.js\\n' > dist/.assetsignore",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/cloudflare": "^12.6.13",
+    "@astrojs/sitemap": "^3.2.1",
+    "@astrojs/vue": "^5.0.3",
+    "@stripe/stripe-js": "^9.1.0",
+    "astro": "^5.1.1",
+    "stripe": "^22.0.1",
+    "typescript": "^5.6.2",
+    "vue": "^3.5.4"
+  }
+}

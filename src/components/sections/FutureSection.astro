@@ -1,0 +1,114 @@
+---
+import { getContent, normalizeLocale } from "@/data/site";
+
+const lang = normalizeLocale(Astro.props.lang);
+const content = getContent(lang);
+---
+
+<section class="future-shell container">
+  <div class="future-copy">
+    <p class="eyebrow">{content.brand}</p>
+    <h2 class="section-title">{content.futureTitle}</h2>
+    <p class="section-copy">{content.footerStory}</p>
+    <div class="future-meta">
+      {content.footerMeta.map((item) => (
+        <span>{item}</span>
+      ))}
+    </div>
+  </div>
+
+  <div class="future-grid">
+    {content.future.map((item, index) => (
+      <article class="future-card">
+        <span class="future-index">{String(index + 1).padStart(2, "0")}</span>
+        <p>{item}</p>
+      </article>
+    ))}
+  </div>
+</section>
+
+<style>
+  .future-shell {
+    display: grid;
+    grid-template-columns: .92fr 1.08fr;
+    gap: 28px;
+    padding: 28px 0 104px;
+  }
+  .future-copy {
+    align-self: start;
+    position: sticky;
+    top: 112px;
+  }
+  .future-copy .section-title {
+    margin-top: 8px;
+    max-width: 10ch;
+  }
+  .future-copy .section-copy {
+    max-width: 34rem;
+    margin-top: 18px;
+  }
+  .future-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .future-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.03);
+    color: rgba(243,230,208,.72);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+  .future-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .future-card {
+    min-height: 220px;
+    padding: 22px;
+    border-radius: 28px;
+    border: 1px solid rgba(255,255,255,.08);
+    background:
+      radial-gradient(circle at top right, rgba(195,75,45,.16), transparent 34%),
+      linear-gradient(180deg, rgba(255,245,232,.05), rgba(255,245,232,.02)),
+      rgba(26,19,17,.88);
+  }
+  .future-index {
+    display: inline-flex;
+    margin-bottom: 24px;
+    color: rgba(241,182,107,.92);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .22em;
+  }
+  .future-card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.8;
+    font-size: 1.04rem;
+  }
+  @media (max-width: 900px) {
+    .future-shell {
+      grid-template-columns: 1fr;
+    }
+    .future-copy {
+      position: static;
+    }
+  }
+  @media (max-width: 560px) {
+    .future-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
