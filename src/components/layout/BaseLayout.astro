@@ -12,7 +12,7 @@ const localeUrls = getLocaleUrls(lang);
 const siteUrl = Astro.site ?? new URL("https://sora-site.panhongwei1994.workers.dev");
 const canonicalPath = lang === "en" ? "/" : `/${lang}`;
 const canonical = new URL(canonicalPath, siteUrl).toString();
-const socialImage = new URL("/ramen/hero-poster.svg", siteUrl).toString();
+const socialImage = new URL("/ramen/hero-poster.png", siteUrl).toString();
 const schema = getRestaurantSchema(siteUrl.toString(), lang);
 ---
 
