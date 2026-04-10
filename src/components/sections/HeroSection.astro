@@ -104,7 +104,7 @@ const content = getContent(lang);
     min-height: calc(100svh - 156px);
   }
   .hero-copy {
-    max-width: 36rem;
+    max-width: 40rem;
   }
   .hero-badge {
     display: inline-flex;
@@ -123,8 +123,9 @@ const content = getContent(lang);
   }
   .hero-title {
     font-size: clamp(2.7rem, 6.2vw, 5rem);
-    max-width: 8ch;
+    max-width: 14ch;
     margin-top: 16px;
+    text-wrap: balance;
   }
   .hero-body {
     max-width: 26rem;
@@ -242,6 +243,9 @@ const content = getContent(lang);
   @media (max-width: 640px) {
     .hero-shell {
       padding-top: 108px;
+    }
+    .hero-title {
+      max-width: 11ch;
     }
     .hero-badge {
       width: 100%;
