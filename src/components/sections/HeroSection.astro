@@ -37,12 +37,8 @@ const content = getContent(lang);
         <img src="/ramen/hero-poster.png" alt={content.brand} loading="eager" />
       </div>
       <div class="hero-note card">
-        <p class="eyebrow">Tonight At {content.brand}</p>
+        <p class="eyebrow">Hours At {content.brand}</p>
         <div class="hero-note-grid">
-          <div>
-            <span>Visit</span>
-            <strong>{content.locationAddress}</strong>
-          </div>
           <div>
             <span>Hours</span>
             <strong>{content.hoursWeek}</strong>
@@ -244,22 +240,9 @@ const content = getContent(lang);
     .hero-shell {
       padding-top: 108px;
     }
-    .hero-copy {
-      width: 100%;
-      max-width: none;
-    }
     .hero-title {
-      width: 100%;
-      max-width: none;
-      font-size: clamp(1.72rem, 6.8vw, 2.28rem);
-      line-height: 1.02;
-      letter-spacing: -0.03em;
-      overflow-wrap: normal;
-      word-break: normal;
-      hyphens: none;
-    }
-    .hero-body {
-      max-width: none;
+      max-width: 16ch;
+      font-size: clamp(1.85rem, 7vw, 2.55rem);
     }
     .hero-badge {
       width: 100%;
