@@ -36,19 +36,6 @@ const content = getContent(lang);
       <div class="hero-poster card">
         <img src="/ramen/hero-poster.png" alt={content.brand} loading="eager" />
       </div>
-      <div class="hero-note card">
-        <p class="eyebrow">Hours At {content.brand}</p>
-        <div class="hero-note-grid">
-          <div>
-            <span>Hours</span>
-            <strong>{content.hoursWeek}</strong>
-          </div>
-          <div>
-            <span>Late Night</span>
-            <strong>{content.hoursWeekend}</strong>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -139,8 +126,7 @@ const content = getContent(lang);
     min-width: 176px;
   }
   .hero-visual {
-    display: grid;
-    gap: 18px;
+    display: block;
   }
   .hero-poster {
     overflow: hidden;
@@ -154,35 +140,6 @@ const content = getContent(lang);
   .hero-poster img {
     width: 100%;
     border-radius: 24px;
-  }
-  .hero-note {
-    padding: 18px;
-  }
-  .hero-note-grid {
-    display: grid;
-    gap: 14px;
-  }
-  .hero-note-grid div {
-    display: grid;
-    gap: 6px;
-    padding: 12px 0;
-    border-top: 1px solid rgba(255,255,255,.08);
-  }
-  .hero-note-grid div:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-  .hero-note-grid span {
-    color: rgba(241,182,107,.86);
-    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .16em;
-    text-transform: uppercase;
-  }
-  .hero-note-grid strong {
-    line-height: 1.6;
-    font-size: .94rem;
   }
   .hero-proof {
     position: relative;
