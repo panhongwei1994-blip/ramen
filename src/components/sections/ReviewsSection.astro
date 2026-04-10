@@ -43,21 +43,21 @@ const content = getContent(lang);
   }
   .reviews-head h2 {
     margin: 0;
-    font-size: clamp(2.1rem, 3.4vw, 3.6rem);
-    line-height: .98;
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    line-height: 1;
     letter-spacing: -.04em;
   }
   .reviews-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 14px;
   }
   .review-card {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 14px;
-    padding: 20px;
-    border-radius: 28px;
+    padding: 18px;
+    border-radius: 24px;
     background:
       radial-gradient(circle at top right, rgba(195,75,45,.14), transparent 34%),
       linear-gradient(180deg, rgba(255,245,232,.05), rgba(255,245,232,.02)),
@@ -83,7 +83,8 @@ const content = getContent(lang);
   .review-card p {
     margin: 10px 0 0;
     color: var(--muted);
-    line-height: 1.75;
+    line-height: 1.62;
+    font-size: .95rem;
   }
   @media (max-width: 900px) {
     .reviews-head,

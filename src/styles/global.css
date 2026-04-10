@@ -71,24 +71,24 @@ body::before {
 .eyebrow {
   margin: 0 0 14px;
   font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: rgba(241, 182, 107, 0.9);
 }
 
 .section-title {
   margin: 0;
-  font-size: clamp(2.4rem, 4vw, 4rem);
-  line-height: 0.95;
+  font-size: clamp(2rem, 3.6vw, 3.2rem);
+  line-height: 0.98;
   letter-spacing: -0.04em;
 }
 
 .section-copy {
   color: var(--muted);
-  font-size: 1.06rem;
-  line-height: 1.75;
+  font-size: 0.98rem;
+  line-height: 1.68;
 }
 
 .pill-button,
@@ -96,13 +96,13 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
-  padding: 0 24px;
+  min-height: 52px;
+  padding: 0 22px;
   border-radius: 999px;
   font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }

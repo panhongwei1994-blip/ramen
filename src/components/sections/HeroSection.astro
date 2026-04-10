@@ -71,7 +71,7 @@ const content = getContent(lang);
     position: relative;
     min-height: 100svh;
     overflow: hidden;
-    padding: 120px 0 48px;
+    padding: 112px 0 38px;
   }
   .hero-grain {
     position: absolute;
@@ -98,44 +98,44 @@ const content = getContent(lang);
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
-    gap: 34px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+    gap: 28px;
     align-items: center;
-    min-height: calc(100svh - 170px);
+    min-height: calc(100svh - 156px);
   }
   .hero-copy {
-    max-width: 42rem;
+    max-width: 36rem;
   }
   .hero-badge {
     display: inline-flex;
     align-items: center;
-    min-height: 38px;
-    padding: 0 16px;
+    min-height: 34px;
+    padding: 0 14px;
     border-radius: 999px;
     border: 1px solid rgba(241,182,107,.18);
     background: rgba(195,75,45,.12);
     color: rgba(243,230,208,.92);
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: .16em;
+    letter-spacing: .14em;
     text-transform: uppercase;
   }
   .hero-title {
-    font-size: clamp(3.4rem, 8vw, 6.5rem);
-    max-width: 11ch;
-    margin-top: 20px;
+    font-size: clamp(2.7rem, 6.2vw, 5rem);
+    max-width: 10ch;
+    margin-top: 16px;
   }
   .hero-body {
-    max-width: 37rem;
-    margin: 22px 0 0;
-    font-size: 1.15rem;
+    max-width: 32rem;
+    margin: 18px 0 0;
+    font-size: 1rem;
   }
   .hero-cta-row {
     display: flex;
     gap: 14px;
     flex-wrap: wrap;
-    margin-top: 34px;
+    margin-top: 28px;
   }
   .hero-cta-row :global(.pill-button),
   .hero-cta-row :global(.ghost-button) {
@@ -159,7 +159,7 @@ const content = getContent(lang);
     border-radius: 24px;
   }
   .hero-note {
-    padding: 22px;
+    padding: 18px;
   }
   .hero-note-grid {
     display: grid;
@@ -168,7 +168,7 @@ const content = getContent(lang);
   .hero-note-grid div {
     display: grid;
     gap: 6px;
-    padding: 14px 0;
+    padding: 12px 0;
     border-top: 1px solid rgba(255,255,255,.08);
   }
   .hero-note-grid div:first-child {
@@ -178,26 +178,27 @@ const content = getContent(lang);
   .hero-note-grid span {
     color: rgba(241,182,107,.86);
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: .18em;
+    letter-spacing: .16em;
     text-transform: uppercase;
   }
   .hero-note-grid strong {
     line-height: 1.6;
+    font-size: .94rem;
   }
   .hero-proof {
     position: relative;
     z-index: 1;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-top: 22px;
+    gap: 12px;
+    margin-top: 18px;
   }
   .proof-card {
     position: relative;
-    padding: 18px 18px 18px 20px;
-    border-radius: 24px;
+    padding: 16px;
+    border-radius: 22px;
     border: 1px solid rgba(255,255,255,.08);
     background:
       linear-gradient(180deg, rgba(255,245,232,.05), rgba(255,245,232,.02)),
@@ -210,7 +211,8 @@ const content = getContent(lang);
   .proof-card p:last-child {
     margin: 0;
     color: var(--muted);
-    line-height: 1.7;
+    line-height: 1.6;
+    font-size: .93rem;
   }
   @keyframes drift {
     0%, 100% {

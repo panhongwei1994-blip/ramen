@@ -93,6 +93,9 @@ export const siteContent = {
     reviewTitle: "A ramen bar people return to after dark",
     reviewBody:
       "Guests stay for the deep broth and come back because ordering the next bowl takes almost no friction.",
+    galleryTitle: "The bowls, sides, and late-night rhythm.",
+    galleryBody:
+      "A quick look at the textures that define the room: rich broth, hot snacks, cold drinks, and a menu built for repeat orders.",
     futureTitle: "Why the bowls keep selling out",
     future: [
       "Broth prepared in small daily batches for better texture and depth.",
@@ -187,6 +190,9 @@ export const siteContent = {
     reviewTitle: "Eine Ramen-Bar, zu der Gäste nachts zurückkehren",
     reviewBody:
       "Tiefe Brühe überzeugt beim ersten Mal, der schnelle Bestellprozess sorgt für Wiederholung.",
+    galleryTitle: "Schalen, Beilagen und der Takt der Nacht.",
+    galleryBody:
+      "Ein schneller Blick auf die Texturen des Hauses: kräftige Brühe, heiße Snacks, kalte Drinks und ein Menü für Wiederholungsbestellungen.",
     futureTitle: "Warum die Schalen immer wieder ausverkauft sind",
     future: [
       "Brühe in kleinen täglichen Chargen für bessere Tiefe und Struktur.",
@@ -281,6 +287,9 @@ export const siteContent = {
     reviewTitle: "Una barra de ramen a la que se vuelve de noche",
     reviewBody:
       "El caldo profundo engancha la primera vez y el pedido rápido hace fácil repetir.",
+    galleryTitle: "Los bowls, los acompañamientos y el ritmo nocturno.",
+    galleryBody:
+      "Una mirada rápida a las texturas que definen el sitio: caldo intenso, snacks calientes, bebidas frías y un menú pensado para repetir.",
     futureTitle: "Por qué los bowls se agotan tan rápido",
     future: [
       "Caldo preparado en tandas pequeñas cada día para más textura y profundidad.",
@@ -375,6 +384,9 @@ export const siteContent = {
     reviewTitle: "Un bar à ramen où l’on revient après la tombée de la nuit",
     reviewBody:
       "Le bouillon dense convainc dès la première commande, la fluidité du checkout fait revenir.",
+    galleryTitle: "Les bols, les à-côtés et le rythme de la nuit.",
+    galleryBody:
+      "Un aperçu rapide des textures de la maison : bouillon dense, snacks chauds, boissons fraîches et menu pensé pour revenir.",
     futureTitle: "Pourquoi les bols partent aussi vite",
     future: [
       "Bouillon préparé en petites fournées quotidiennes pour plus de relief.",
@@ -469,6 +481,9 @@ export const siteContent = {
     reviewTitle: "Een ramenbar waar mensen na donker voor terugkomen",
     reviewBody:
       "Diepe bouillon overtuigt bij de eerste bestelling, de snelle flow maakt herhalen vanzelfsprekend.",
+    galleryTitle: "De bowls, sides en het ritme van de nacht.",
+    galleryBody:
+      "Een snelle blik op de texturen van het merk: rijke bouillon, warme snacks, koude dranken en een menu dat gemaakt is voor herhaalbestellingen.",
     futureTitle: "Waarom de bowls steeds uitverkopen",
     future: [
       "Bouillon in kleine dagelijkse batches voor meer diepte en textuur.",

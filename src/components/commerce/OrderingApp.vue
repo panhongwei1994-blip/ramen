@@ -647,17 +647,17 @@ watch(
   margin-bottom: 18px;
 }
 .category-chip {
-  min-height: 48px;
-  padding: 0 18px;
-  border-radius: 16px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
   color: rgba(246,239,230,.72);
   white-space: nowrap;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .18em;
+  letter-spacing: .14em;
   text-transform: uppercase;
 }
 .category-chip.active {
@@ -667,8 +667,8 @@ watch(
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  margin-top: 22px;
+  gap: 16px;
+  margin-top: 18px;
 }
 .product-card {
   overflow: hidden;
@@ -692,7 +692,7 @@ watch(
 }
 .product-image {
   width: 100%;
-  height: 300px;
+  height: 252px;
   object-fit: cover;
   transition: transform .22s ease, box-shadow .22s ease;
 }
@@ -706,24 +706,24 @@ watch(
   display: none;
 }
 .product-copy {
-  padding: 20px;
+  padding: 16px;
 }
 .product-kicker {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .tag-row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .tag-pill {
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 999px;
   background: rgba(212,165,74,.14);
   color: var(--gold-soft);
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -736,17 +736,19 @@ watch(
 }
 .product-header h3 {
   margin: 0;
-  font-size: 1.65rem;
+  font-size: 1.36rem;
+  line-height: 1.05;
 }
 .product-header p {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.58;
+  font-size: .95rem;
 }
 .product-header strong {
   white-space: nowrap;
-  padding: 10px 14px;
-  border-radius: 16px;
+  padding: 8px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(212,165,74,.18);
   background: rgba(212,165,74,.08);
   color: rgba(244,213,154,.95);
@@ -755,8 +757,8 @@ watch(
 .checkout-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 10px;
+  margin-top: 14px;
 }
 .primary-button,
 .secondary-button,
@@ -771,12 +773,12 @@ textarea {
 }
 .primary-button,
 .secondary-button {
-  min-height: 52px;
-  border-radius: 16px;
+  min-height: 48px;
+  border-radius: 14px;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .12em;
   text-transform: uppercase;
 }
 .primary-button {
