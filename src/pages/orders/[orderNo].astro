@@ -16,10 +16,16 @@ if (!order) {
 const lang = order?.lang ?? "en";
 const format = (value: number) => formatPrice(value, lang);
 const statusLabel = (value: string) => value.replaceAll("_", " ");
+const shouldReconcile = Boolean(order && order.paymentStatus !== "paid" && order.stripeCheckoutSessionId);
+const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` : "";
 ---
 
 <BaseLayout lang={lang}>
-  <section class="container page-shell">
+  <section
+    class="container page-shell"
+    data-reconcile-order={shouldReconcile ? "true" : "false"}
+    data-reconcile-path={reconcilePath}
+  >
     <div class="page-copy">
       <p class="eyebrow">Order Tracking</p>
       <h1 class="section-title">{order ? `Order ${order.orderNo}` : "Order not found"}</h1>
@@ -98,6 +104,25 @@ const statusLabel = (value: string) => value.replaceAll("_", " ");
     ) : null}
   </section>
 </BaseLayout>
+
+<script is:inline>
+  const shell = document.querySelector("[data-reconcile-order]");
+  const shouldReconcile = shell?.getAttribute("data-reconcile-order") === "true";
+  const reconcilePath = shell?.getAttribute("data-reconcile-path");
+
+  if (shouldReconcile && reconcilePath) {
+    window.setTimeout(() => {
+      fetch(reconcilePath, { method: "POST" })
+        .then((response) => response.json().catch(() => null))
+        .then((data) => {
+          if (data?.reconciled) {
+            window.location.reload();
+          }
+        })
+        .catch(() => null);
+    }, 1200);
+  }
+</script>
 
 <style>
   .page-shell {

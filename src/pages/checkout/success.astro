@@ -8,10 +8,11 @@ const orderNo = Astro.url.searchParams.get("order") ?? "";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
 const orderPath = order ? `/orders/${order.orderNo}` : "/";
+const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` : "";
 ---
 
 <BaseLayout lang={order?.lang ?? "en"}>
-  <section class="container success-shell" data-order-path={order ? orderPath : ""}>
+  <section class="container success-shell" data-order-path={order ? orderPath : ""} data-reconcile-path={reconcilePath}>
     <div class="card success-card">
       <p class="eyebrow">Stripe Checkout</p>
       <h1 class="section-title">Back from payment</h1>
@@ -58,11 +59,24 @@ const orderPath = order ? `/orders/${order.orderNo}` : "/";
     // Ignore storage access issues.
   }
 
-  const orderPath = document.querySelector("[data-order-path]")?.getAttribute("data-order-path");
-  if (orderPath) {
-    window.setTimeout(() => {
+  const shell = document.querySelector("[data-order-path]");
+  const orderPath = shell?.getAttribute("data-order-path");
+  const reconcilePath = shell?.getAttribute("data-reconcile-path");
+
+  const redirect = () => {
+    if (orderPath) {
       window.location.assign(orderPath);
-    }, 1200);
+    }
+  };
+
+  if (reconcilePath) {
+    fetch(reconcilePath, { method: "POST" })
+      .catch(() => null)
+      .finally(() => {
+        window.setTimeout(redirect, 800);
+      });
+  } else {
+    window.setTimeout(redirect, 1200);
   }
 </script>
 
