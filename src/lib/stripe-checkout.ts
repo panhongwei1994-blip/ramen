@@ -6,15 +6,6 @@ function cleanString(value?: string) {
 }
 
 function getPublicOrigin(request: Request, configuredSiteUrl?: string) {
-  const explicit = cleanString(configuredSiteUrl);
-  if (explicit) {
-    try {
-      return new URL(explicit).origin;
-    } catch {
-      // Fall back to request-derived origin when configuration is malformed.
-    }
-  }
-
   const forwardedProto = cleanString(request.headers.get("x-forwarded-proto") ?? undefined);
   const forwardedHost = cleanString(request.headers.get("x-forwarded-host") ?? undefined);
 
@@ -22,7 +13,21 @@ function getPublicOrigin(request: Request, configuredSiteUrl?: string) {
     return `${forwardedProto}://${forwardedHost}`;
   }
 
-  return new URL(request.url).origin;
+  const requestOrigin = new URL(request.url).origin;
+  if (requestOrigin) {
+    return requestOrigin;
+  }
+
+  const explicit = cleanString(configuredSiteUrl);
+  if (explicit) {
+    try {
+      return new URL(explicit).origin;
+    } catch {
+      // Ignore malformed configuration and keep the request-derived origin.
+    }
+  }
+
+  return requestOrigin;
 }
 
 function toPublicImageUrl(path: string, origin: string) {

@@ -47,15 +47,15 @@ const actions = [
             </div>
             <div>
               <span class="summary-label">Customer</span>
-              <strong>{order.customerName}</strong>
+              <strong>{order.customerName || "Collected at checkout"}</strong>
             </div>
             <div>
               <span class="summary-label">Phone</span>
-              <strong>{order.phone}</strong>
+              <strong>{order.phone || "Pending Stripe confirmation"}</strong>
             </div>
             <div>
               <span class="summary-label">Address</span>
-              <strong>{order.address || "Pickup"}</strong>
+              <strong>{order.address || (order.fulfillment === "pickup" ? "Pickup" : "Pending Stripe confirmation")}</strong>
             </div>
             <div>
               <span class="summary-label">Total</span>

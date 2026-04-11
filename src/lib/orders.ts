@@ -475,16 +475,6 @@ function updateOrderLifecycle(order: OrderRecord, event: OrderLifecycleEvent) {
 }
 
 export async function createOrder(input: CreateOrderInput & { runtimeEnv?: RuntimeEnv }) {
-  if (!normalizeOptionalString(input.customerName)) {
-    throw new Error("Customer name is required.");
-  }
-  if (!normalizeOptionalString(input.phone)) {
-    throw new Error("Customer phone is required.");
-  }
-  if (input.fulfillment === "delivery" && !normalizeOptionalString(input.address)) {
-    throw new Error("Delivery address is required.");
-  }
-
   const orderId = randomId("order");
   const createdAt = nowIso();
   const items = recalculateOrderItems(orderId, input.items, input.lang);
@@ -571,7 +561,10 @@ export async function transitionOrderStatus(input: {
 }
 
 function buildAddressFromSession(session: Stripe.Checkout.Session) {
-  const shipping = session.customer_details?.address;
+  const shippingDetails = (session as Stripe.Checkout.Session & {
+    shipping_details?: { address?: Stripe.Address | null } | null;
+  }).shipping_details;
+  const shipping = shippingDetails?.address ?? session.customer_details?.address;
   if (!shipping) return "";
 
   return [

@@ -175,16 +175,11 @@
                 </div>
               </div>
 
-              <div class="form-grid">
-                <label><span>{{ copy.name }}</span><input v-model="checkout.name" type="text" /></label>
-                <label><span>{{ copy.phone }}</span><input v-model="checkout.phone" type="tel" /></label>
-                <label v-if="checkout.fulfillment === 'delivery'">
-                  <span>{{ copy.address }}</span>
-                  <input v-model="checkout.address" type="text" />
-                </label>
-              </div>
-
-              <p class="helper-note">Checkout redirects to Stripe. The server persists the order first and recalculates totals before payment.</p>
+              <p class="helper-note">
+                Stripe will collect your name, phone,
+                {{ checkout.fulfillment === "delivery" ? " and delivery address" : " and pickup details" }}
+                on the secure checkout page. The order is persisted before payment and totals are recalculated on the server.
+              </p>
 
               <div class="checkout-actions">
                 <button class="primary-button checkout-submit" type="button" :disabled="!canPlaceOrder || isSubmitting" @click="placeOrder">
@@ -263,9 +258,6 @@ const cart = ref<Array<{
 }>>([]);
 
 const checkout = reactive({
-  name: "",
-  phone: "",
-  address: "",
   fulfillment: "delivery",
 });
 
@@ -278,13 +270,7 @@ const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.tota
 const deliveryFee = computed(() => (cart.value.length ? (checkout.fulfillment === "pickup" ? 0 : 4.9) : 0));
 const grandTotal = computed(() => subtotal.value + deliveryFee.value);
 const itemCount = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0));
-const canContinueContact = computed(() => Boolean(checkout.name.trim() && checkout.phone.trim()));
-const canPlaceOrder = computed(() => {
-  const hasContact = canContinueContact.value;
-  if (!hasContact) return false;
-  if (checkout.fulfillment === "pickup") return true;
-  return Boolean(checkout.address.trim());
-});
+const canPlaceOrder = computed(() => itemCount.value > 0);
 const successTitle = computed(() =>
   checkout.fulfillment === "pickup" ? "Pickup Confirmed" : "Order Confirmed",
 );
@@ -448,15 +434,6 @@ watch(
     window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(value));
   },
   { deep: true },
-);
-
-watch(
-  () => checkout.fulfillment,
-  (value) => {
-    if (value === "pickup") {
-      checkout.address = "";
-    }
-  },
 );
 
 </script>

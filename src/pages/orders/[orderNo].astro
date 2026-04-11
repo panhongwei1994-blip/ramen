@@ -49,13 +49,13 @@ const statusLabel = (value: string) => value.replaceAll("_", " ");
           <div class="detail-grid">
             <div>
               <span class="status-label">Customer</span>
-              <strong>{order.customerName}</strong>
-              <p>{order.phone}</p>
+              <strong>{order.customerName || "Collected at checkout"}</strong>
+              <p>{order.phone || "Pending Stripe confirmation"}</p>
             </div>
             <div>
               <span class="status-label">Fulfillment</span>
               <strong>{order.fulfillment}</strong>
-              <p>{order.address || "Pickup at the store"}</p>
+              <p>{order.address || (order.fulfillment === "pickup" ? "Pickup at the store" : "Pending Stripe confirmation")}</p>
             </div>
           </div>
 
