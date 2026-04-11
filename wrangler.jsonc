@@ -2,10 +2,9 @@
   "name": "ramen",
   "compatibility_date": "2026-04-10",
   "compatibility_flags": ["nodejs_compat"],
-  // Add a real KV namespace before relying on persistent orders in production.
-  // "kv_namespaces": [
-  //   { "binding": "ORDERS", "id": "replace-with-orders-kv-id" }
-  // ],
+  "kv_namespaces": [
+    { "binding": "ORDERS", "id": "66a27c8a2c3a4d719956c2d4c0a663a3" }
+  ],
   "main": "dist/_worker.js/index.js",
   "assets": {
     "directory": "dist"
