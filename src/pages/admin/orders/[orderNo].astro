@@ -31,6 +31,9 @@ const actions = [
       <p class="eyebrow">Merchant Order</p>
       <h1 class="section-title">{order ? order.orderNo : "Order not found"}</h1>
       <p class="section-copy">Server-side order state, payment state, and lifecycle log in one place.</p>
+      <div class="page-actions">
+        <a class="ghost-button back-button" href="/admin/orders">Back to order queue</a>
+      </div>
     </div>
 
     {order ? (
@@ -175,6 +178,12 @@ const actions = [
   .page-copy {
     max-width: 760px;
     margin-bottom: 28px;
+  }
+  .page-actions {
+    margin-top: 18px;
+  }
+  .back-button {
+    min-height: 46px;
   }
   .admin-grid {
     display: grid;

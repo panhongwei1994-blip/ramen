@@ -17,6 +17,10 @@ const format = (value: number) => formatPrice(value, "en");
       <p class="eyebrow">Merchant Orders</p>
       <h1 class="section-title">Live order queue</h1>
       <p class="section-copy">Minimal merchant view over the persisted order records.</p>
+      <div class="alert-actions">
+        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
+        <span class="alert-status" id="order-alert-status">Alerts off</span>
+      </div>
     </div>
 
     {!hasPersistentStore ? (
@@ -35,7 +39,7 @@ const format = (value: number) => formatPrice(value, "en");
       </div>
       {orders.length ? (
         orders.map((order) => (
-          <a class="table-row" href={`/admin/orders/${order.orderNo}`}>
+          <a class="table-row" href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
             <span>{order.orderNo}</span>
             <span>{order.orderStatus.replaceAll("_", " ")}</span>
             <span>{order.paymentStatus.replaceAll("_", " ")}</span>
@@ -52,6 +56,98 @@ const format = (value: number) => formatPrice(value, "en");
   </section>
 </BaseLayout>
 
+<script is:inline>
+  const alertButton = document.getElementById("enable-order-alerts");
+  const alertStatus = document.getElementById("order-alert-status");
+  const rowNodes = document.querySelectorAll("[data-order-id]");
+  const seenOrders = new Set(Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean));
+  let audioContext;
+  let alertsEnabled = false;
+
+  const setStatus = (message) => {
+    if (alertStatus) {
+      alertStatus.textContent = message;
+    }
+  };
+
+  const playOrderTone = () => {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const notes = [740, 988, 740];
+
+    notes.forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.001, now + index * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now + index * 0.18);
+      oscillator.stop(now + index * 0.18 + 0.18);
+    });
+  };
+
+  const notifyNewOrder = (order) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("New order received", {
+        body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
+      });
+    }
+    playOrderTone();
+  };
+
+  const pollOrders = async () => {
+    if (!alertsEnabled) return;
+
+    try {
+      const response = await fetch("/api/admin/orders");
+      const data = await response.json();
+      const orders = Array.isArray(data?.orders) ? data.orders : [];
+      const newOrders = orders.filter((order) => order?.id && !seenOrders.has(order.id));
+
+      if (newOrders.length) {
+        newOrders.forEach((order) => seenOrders.add(order.id));
+        notifyNewOrder(newOrders[0]);
+        setStatus(`New order: ${newOrders[0].orderNo}`);
+        window.setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
+
+      setStatus("Alerts on");
+    } catch {
+      setStatus("Alert polling failed");
+    }
+  };
+
+  if (alertButton instanceof HTMLButtonElement) {
+    alertButton.addEventListener("click", async () => {
+      try {
+        audioContext = audioContext || new window.AudioContext();
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+      } catch {
+        // Ignore audio init failures.
+      }
+
+      if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission().catch(() => "default");
+      }
+
+      alertsEnabled = true;
+      alertButton.disabled = true;
+      setStatus("Alerts on");
+      window.setInterval(() => {
+        void pollOrders();
+      }, 12000);
+      void pollOrders();
+    });
+  }
+</script>
+
 <style>
   .admin-shell {
     padding: 140px 0 80px;
@@ -59,6 +155,24 @@ const format = (value: number) => formatPrice(value, "en");
   .page-copy {
     max-width: 760px;
     margin-bottom: 28px;
+  }
+  .alert-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .alert-toggle {
+    min-height: 46px;
+  }
+  .alert-status {
+    color: var(--muted);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
   .storage-warning {
     margin-bottom: 20px;
