@@ -11,12 +11,12 @@ const orderPath = order ? `/orders/${order.orderNo}` : "/";
 ---
 
 <BaseLayout lang={order?.lang ?? "en"}>
-  <section class="container success-shell">
+  <section class="container success-shell" data-order-path={order ? orderPath : ""}>
     <div class="card success-card">
       <p class="eyebrow">Stripe Checkout</p>
       <h1 class="section-title">Back from payment</h1>
       <p class="section-copy">
-        Payment completion is confirmed by webhook. Use the order page below to see the live server-side order status.
+        Payment completion is confirmed by webhook. You will be redirected to your order page automatically.
       </p>
 
       {order ? (
@@ -56,6 +56,13 @@ const orderPath = order ? `/orders/${order.orderNo}` : "/";
     window.localStorage.removeItem("sumi-ramen-cart");
   } catch {
     // Ignore storage access issues.
+  }
+
+  const orderPath = document.querySelector("[data-order-path]")?.getAttribute("data-order-path");
+  if (orderPath) {
+    window.setTimeout(() => {
+      window.location.assign(orderPath);
+    }, 1200);
   }
 </script>
 

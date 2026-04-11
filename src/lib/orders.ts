@@ -221,6 +221,10 @@ export function getRuntimeEnv(locals?: unknown) {
   return (locals as { runtime?: { env?: RuntimeEnv } })?.runtime?.env;
 }
 
+export function hasPersistentOrderStore(runtimeEnv?: RuntimeEnv) {
+  return Boolean(getOrdersBinding(runtimeEnv));
+}
+
 async function readJson<T>(key: string, runtimeEnv?: RuntimeEnv) {
   const binding = getOrdersBinding(runtimeEnv);
   if (binding) {

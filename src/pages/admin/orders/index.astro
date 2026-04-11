@@ -1,12 +1,13 @@
 ---
 import BaseLayout from "@/components/layout/BaseLayout.astro";
 import { formatPrice } from "@/data/site";
-import { getRuntimeEnv, listOrders } from "@/lib/orders";
+import { getRuntimeEnv, hasPersistentOrderStore, listOrders } from "@/lib/orders";
 
 export const prerender = false;
 
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
+const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
 ---
 
@@ -17,6 +18,12 @@ const format = (value: number) => formatPrice(value, "en");
       <h1 class="section-title">Live order queue</h1>
       <p class="section-copy">Minimal merchant view over the persisted order records.</p>
     </div>
+
+    {!hasPersistentStore ? (
+      <div class="storage-warning card">
+        This deployment is running without the <strong>ORDERS</strong> KV binding. Orders will not persist across requests, so the admin page can appear empty after checkout. For this MVP you do not need a full database yet, but you do need a Cloudflare KV namespace bound as <strong>ORDERS</strong>.
+      </div>
+    ) : null}
 
     <div class="card table-card">
       <div class="table-head table-row">
@@ -37,7 +44,9 @@ const format = (value: number) => formatPrice(value, "en");
           </a>
         ))
       ) : (
-        <div class="table-empty">No orders yet.</div>
+        <div class="table-empty">
+          {hasPersistentStore ? "No orders yet." : "No orders visible because persistent storage is not bound on this deployment."}
+        </div>
       )}
     </div>
   </section>
@@ -50,6 +59,16 @@ const format = (value: number) => formatPrice(value, "en");
   .page-copy {
     max-width: 760px;
     margin-bottom: 28px;
+  }
+  .storage-warning {
+    margin-bottom: 20px;
+    padding: 18px 20px;
+    color: var(--text);
+    line-height: 1.7;
+    border-color: rgba(241, 182, 107, 0.25);
+    background:
+      linear-gradient(180deg, rgba(241, 182, 107, 0.08), rgba(241, 182, 107, 0.04)),
+      var(--panel);
   }
   .table-card {
     overflow: hidden;
