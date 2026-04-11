@@ -8,6 +8,37 @@ function cleanString(value?: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function getPublicOrigin(request: Request, configuredSiteUrl?: string) {
+  const explicit = cleanString(configuredSiteUrl);
+  if (explicit) {
+    try {
+      return new URL(explicit).origin;
+    } catch {
+      // Fall through to request-derived origin when the configured value is malformed.
+    }
+  }
+
+  const forwardedProto = cleanString(request.headers.get("x-forwarded-proto") ?? undefined);
+  const forwardedHost = cleanString(request.headers.get("x-forwarded-host") ?? undefined);
+
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  return new URL(request.url).origin;
+}
+
+function toPublicImageUrl(path: string, origin: string) {
+  const cleanedPath = cleanString(path);
+  if (!cleanedPath) return undefined;
+
+  try {
+    return new URL(cleanedPath, origin).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 type CheckoutPayload = {
   lang?: string;
   cart: Array<{
@@ -66,7 +97,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const stripe = new Stripe(stripeKey);
-  const origin = siteUrl || new URL(request.url).origin;
+  const publicOrigin = getPublicOrigin(request, siteUrl);
   const order = await createOrder({
     lang: payload.lang,
     cart: payload.cart,
@@ -82,7 +113,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       currency: "usd",
       product_data: {
         name: item.name,
-        images: item.image ? [`${origin}${item.image}`] : undefined,
+        // Stripe fetches product thumbnails server-side, so the image must be a public absolute URL.
+        images: toPublicImageUrl(item.image, publicOrigin)
+          ? [toPublicImageUrl(item.image, publicOrigin) as string]
+          : undefined,
         description: [item.addOnLabels.join(" · "), item.notes].filter(Boolean).join(" | ") || undefined,
       },
       unit_amount: Math.round(item.unitPrice * 100),
