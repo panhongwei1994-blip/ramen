@@ -457,8 +457,8 @@ watch(
 }
 .category-row {
   position: sticky;
-  top: 16px;
-  z-index: 10;
+  top: 96px;
+  z-index: 8;
   display: flex;
   gap: 10px;
   overflow: auto;
@@ -1095,11 +1095,17 @@ textarea {
 }
 
 @media (max-width: 1080px) {
+  .category-row {
+    top: 90px;
+  }
   .menu-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (max-width: 760px) {
+  .category-row {
+    top: 84px;
+  }
   .embedded-overlay {
     display: block;
     padding: 0;
