@@ -23,116 +23,139 @@ const actions = [
   { label: "Cancel", endpoint: "cancel", method: "POST" },
   { label: "Refund", endpoint: "status", method: "POST", payload: { status: "refunded", message: "Merchant marked order as refunded." } },
 ];
+
+function statusLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function tone(value: string) {
+  if (value === "paid_waiting_accept") return "urgent";
+  if (value === "accepted" || value === "cooking" || value === "delivering") return "active";
+  if (value === "completed") return "done";
+  if (value === "cancelled" || value === "refunded") return "muted";
+  return "neutral";
+}
 ---
 
 <BaseLayout lang="en">
   <section class="container admin-shell" data-order-no={order?.orderNo ?? ""}>
-    <div class="page-copy">
-      <p class="eyebrow">Merchant Order</p>
-      <h1 class="section-title">{order ? order.orderNo : "Order not found"}</h1>
-      <p class="section-copy">Server-side order state, payment state, and lifecycle log in one place.</p>
-      <div class="page-actions">
-        <a class="ghost-button back-button" href="/admin/orders">Back to order queue</a>
+    <div class="page-head">
+      <div class="page-copy">
+        <p class="eyebrow">Merchant Order</p>
+        <h1 class="section-title">{order ? order.orderNo : "Order not found"}</h1>
+        <p class="section-copy">Critical status, payment, and fulfillment actions are surfaced first. Supporting details sit below.</p>
       </div>
+      <a class="ghost-button back-button" href="/admin/orders">Back to order queue</a>
     </div>
 
     {order ? (
-      <div class="admin-grid">
-        <section class="card admin-card">
-          <div class="summary-grid">
-            <div>
-              <span class="summary-label">Order status</span>
-              <strong>{order.orderStatus.replaceAll("_", " ")}</strong>
+      <>
+        <section class:list={["card hero-panel", tone(order.orderStatus)]}>
+          <div class="hero-copy">
+            <div class="hero-badges">
+              <span class:list={["status-pill", tone(order.orderStatus)]}>{statusLabel(order.orderStatus)}</span>
+              <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                {statusLabel(order.paymentStatus)}
+              </span>
             </div>
-            <div>
-              <span class="summary-label">Payment status</span>
-              <strong>{order.paymentStatus.replaceAll("_", " ")}</strong>
-            </div>
-            <div>
-              <span class="summary-label">Customer</span>
-              <strong>{order.customerName || "Collected at checkout"}</strong>
-            </div>
-            <div>
-              <span class="summary-label">Phone</span>
-              <strong>{order.phone || "Pending Stripe confirmation"}</strong>
-            </div>
-            <div>
-              <span class="summary-label">Address</span>
-              <strong>{order.address || (order.fulfillment === "pickup" ? "Pickup" : "Pending Stripe confirmation")}</strong>
-            </div>
-            <div>
-              <span class="summary-label">Total</span>
-              <strong>{format(order.totalAmount)}</strong>
-            </div>
+            <h2>{order.customerName || "Guest checkout"}</h2>
+            <p>{order.fulfillment === "delivery" ? "Delivery order" : "Pickup order"} · {order.items.length} items · {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p>
           </div>
-
-          <div class="actions">
-            {actions.map((action) => (
-              <button
-                class="ghost-button admin-action"
-                type="button"
-                data-endpoint={action.endpoint}
-                data-method={action.method}
-                data-payload={action.payload ? JSON.stringify(action.payload) : ""}
-              >
-                {action.label}
-              </button>
-            ))}
+          <div class="hero-meta">
+            <span class="metric-label">Total</span>
+            <strong>{format(order.totalAmount)}</strong>
           </div>
+        </section>
 
+        <section class="action-panel">
+          {actions.map((action) => (
+            <button
+              class:list={["ghost-button admin-action", { emphasis: action.label === "Accept" || action.label === "Start cooking" }]}
+              type="button"
+              data-endpoint={action.endpoint}
+              data-method={action.method}
+              data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+            >
+              {action.label}
+            </button>
+          ))}
           <div class="notice" id="admin-notice"></div>
         </section>
 
-        <section class="card admin-card">
-          <h2>Items</h2>
-          <div class="line-items">
-            {order.items.map((item) => (
-              <article class="line-item">
-                <img src={item.imageUrl} alt={item.productName} />
-                <div>
-                  <div class="line-head">
-                    <strong>{item.productName}</strong>
-                    <strong>{format(item.subtotal)}</strong>
+        <div class="detail-grid">
+          <section class="card admin-card">
+            <h2>Order summary</h2>
+            <div class="summary-grid">
+              <div>
+                <span class="summary-label">Customer</span>
+                <strong>{order.customerName || "Collected at checkout"}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Phone</span>
+                <strong>{order.phone || "Pending Stripe confirmation"}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Address</span>
+                <strong>{order.address || (order.fulfillment === "pickup" ? "Pickup" : "Pending Stripe confirmation")}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Payment intent</span>
+                <strong>{order.stripePaymentIntentId || "Pending"}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="card admin-card sticky-card">
+            <h2>Payment</h2>
+            <div class="mini-stack">
+              <div class="mini-row">
+                <span class="summary-label">Provider status</span>
+                <strong>{payment?.status ?? "unpaid"}</strong>
+              </div>
+              <div class="mini-row">
+                <span class="summary-label">Session id</span>
+                <strong>{order.stripeCheckoutSessionId || "Not created"}</strong>
+              </div>
+              <div class="mini-row">
+                <span class="summary-label">Paid at</span>
+                <strong>{order.paidAt || "Awaiting confirmation"}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="card admin-card wide-card">
+            <h2>Items</h2>
+            <div class="line-items">
+              {order.items.map((item) => (
+                <article class="line-item">
+                  <img src={item.imageUrl} alt={item.productName} />
+                  <div>
+                    <div class="line-head">
+                      <strong>{item.productName}</strong>
+                      <strong>{format(item.subtotal)}</strong>
+                    </div>
+                    <p>{format(item.unitPrice)} each × {item.quantity}</p>
+                    {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
+                    {item.note ? <p>{item.note}</p> : null}
                   </div>
-                  <p>{format(item.unitPrice)} each × {item.quantity}</p>
-                  {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
-                  {item.note ? <p>{item.note}</p> : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+                </article>
+              ))}
+            </div>
+          </section>
 
-        <section class="card admin-card">
-          <h2>Payment</h2>
-          <div class="summary-grid">
-            <div>
-              <span class="summary-label">Session id</span>
-              <strong>{order.stripeCheckoutSessionId || "Not created"}</strong>
+          <section class="card admin-card wide-card">
+            <h2>Timeline</h2>
+            <div class="timeline">
+              {order.timeline.map((event) => (
+                <article class="timeline-item">
+                  <strong>{event.message}</strong>
+                  <span>{new Date(event.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
+                </article>
+              ))}
             </div>
-            <div>
-              <span class="summary-label">Payment intent</span>
-              <strong>{order.stripePaymentIntentId || "Pending"}</strong>
-            </div>
-            <div>
-              <span class="summary-label">Provider status</span>
-              <strong>{payment?.status ?? "unpaid"}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="card admin-card">
-          <h2>Timeline</h2>
-          <div class="timeline">
-            {order.timeline.map((event) => (
-              <article class="timeline-item">
-                <strong>{event.message}</strong>
-                <span>{new Date(event.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
-              </article>
-            ))}
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      </>
     ) : null}
   </section>
 </BaseLayout>
@@ -150,7 +173,10 @@ const actions = [
       const rawPayload = button.dataset.payload;
       const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
 
-      notice.textContent = "Updating order...";
+      if (notice) {
+        notice.textContent = "Updating order...";
+      }
+
       const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
         method,
         headers: {
@@ -161,11 +187,15 @@ const actions = [
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        notice.textContent = data.error || "Request failed.";
+        if (notice) {
+          notice.textContent = data.error || "Request failed.";
+        }
         return;
       }
 
-      notice.textContent = "Order updated.";
+      if (notice) {
+        notice.textContent = "Order updated.";
+      }
       window.location.reload();
     });
   }
@@ -173,51 +203,163 @@ const actions = [
 
 <style>
   .admin-shell {
-    padding: 140px 0 80px;
+    padding: 140px 0 88px;
+  }
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: end;
+    margin-bottom: 24px;
   }
   .page-copy {
-    max-width: 760px;
-    margin-bottom: 28px;
+    max-width: 48rem;
   }
-  .page-actions {
-    margin-top: 18px;
+  .hero-panel {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: end;
+    padding: 24px;
+    margin-bottom: 16px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)),
+      rgba(19,14,12,.96);
   }
-  .back-button {
+  .hero-panel.urgent {
+    background:
+      radial-gradient(circle at top right, rgba(255,143,143,.18), transparent 34%),
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)),
+      rgba(28,14,14,.96);
+  }
+  .hero-panel.active {
+    background:
+      radial-gradient(circle at top right, rgba(241,182,107,.16), transparent 34%),
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)),
+      rgba(29,20,15,.96);
+  }
+  .hero-badges,
+  .action-panel {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hero-badges {
+    margin-bottom: 14px;
+  }
+  .hero-copy h2 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 0.98;
+  }
+  .hero-copy p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .hero-meta {
+    min-width: 180px;
+    padding: 16px 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(241,182,107,.2);
+    background: rgba(241,182,107,.08);
+  }
+  .metric-label,
+  .summary-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .hero-meta strong {
+    font-size: 1.5rem;
+  }
+  .back-button,
+  .admin-action {
     min-height: 46px;
   }
-  .admin-grid {
+  .action-panel {
+    margin-bottom: 18px;
+    align-items: center;
+  }
+  .admin-action.emphasis {
+    border-color: rgba(241,182,107,.24);
+    background: rgba(241,182,107,.08);
+  }
+  .notice {
+    min-height: 24px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .detail-grid {
     display: grid;
-    gap: 20px;
+    grid-template-columns: 1.25fr .85fr;
+    gap: 18px;
+    align-items: start;
   }
   .admin-card {
     padding: 24px;
   }
+  .wide-card {
+    grid-column: 1 / -1;
+  }
+  .sticky-card {
+    position: sticky;
+    top: 110px;
+  }
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
-  .summary-label {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--muted);
-    font-size: 0.85rem;
-    text-transform: uppercase;
+  .mini-stack {
+    display: grid;
+    gap: 16px;
+  }
+  .mini-row strong,
+  .summary-grid strong {
+    word-break: break-word;
+  }
+  .status-pill,
+  .payment-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
     letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,.08);
   }
-  .actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 24px;
+  .status-pill.urgent {
+    background: rgba(255,143,143,.12);
+    border-color: rgba(255,143,143,.25);
   }
-  .admin-action {
-    min-height: 46px;
+  .status-pill.active {
+    background: rgba(241,182,107,.12);
+    border-color: rgba(241,182,107,.24);
   }
-  .notice {
-    min-height: 24px;
-    margin-top: 14px;
-    color: var(--muted);
+  .status-pill.done {
+    background: rgba(116,196,166,.12);
+    border-color: rgba(116,196,166,.25);
+  }
+  .status-pill.muted {
+    opacity: 0.78;
+  }
+  .payment-pill.paid {
+    background: rgba(116,196,166,.12);
+    border-color: rgba(116,196,166,.25);
+  }
+  .payment-pill.unpaid {
+    background: rgba(255,143,143,.1);
+    border-color: rgba(255,143,143,.22);
   }
   .line-items,
   .timeline {
@@ -253,14 +395,32 @@ const actions = [
   }
   h2 {
     margin: 0;
+    font-size: 1.5rem;
+  }
+  @media (max-width: 960px) {
+    .page-head,
+    .hero-panel,
+    .detail-grid {
+      display: grid;
+    }
+    .sticky-card {
+      position: static;
+    }
   }
   @media (max-width: 720px) {
+    .summary-grid {
+      grid-template-columns: 1fr;
+    }
     .line-item {
       grid-template-columns: 1fr;
     }
     .line-item img {
       width: 100%;
       max-width: 180px;
+    }
+    .notice {
+      margin-left: 0;
+      width: 100%;
     }
   }
 </style>

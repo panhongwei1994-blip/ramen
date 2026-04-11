@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "@/components/layout/BaseLayout.astro";
 import { formatPrice } from "@/data/site";
-import { getRuntimeEnv, hasPersistentOrderStore, listOrders } from "@/lib/orders";
+import { getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } from "@/lib/orders";
 
 export const prerender = false;
 
@@ -9,14 +9,32 @@ const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
+
+const urgentStatuses = new Set(["paid_waiting_accept", "accepted", "cooking"]);
+const liveOrders = orders.filter((order) => urgentStatuses.has(order.orderStatus));
+const paidOrders = orders.filter((order) => order.paymentStatus === "paid");
+const revenue = paidOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+const newestOrder = orders[0] ?? null;
+
+function statusLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function orderTone(order: OrderRecord) {
+  if (order.orderStatus === "paid_waiting_accept") return "urgent";
+  if (order.orderStatus === "accepted" || order.orderStatus === "cooking" || order.orderStatus === "delivering") return "active";
+  if (order.orderStatus === "completed") return "done";
+  if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
+  return "neutral";
+}
 ---
 
 <BaseLayout lang="en">
   <section class="container admin-shell">
     <div class="page-copy">
       <p class="eyebrow">Merchant Orders</p>
-      <h1 class="section-title">Live order queue</h1>
-      <p class="section-copy">Minimal merchant view over the persisted order records.</p>
+      <h1 class="section-title">Operations board</h1>
+      <p class="section-copy">The queue is arranged for quick action: new paid orders first, live kitchen flow second, history after that.</p>
       <div class="alert-actions">
         <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
         <span class="alert-status" id="order-alert-status">Alerts off</span>
@@ -29,30 +47,91 @@ const format = (value: number) => formatPrice(value, "en");
       </div>
     ) : null}
 
-    <div class="card table-card">
-      <div class="table-head table-row">
-        <span>Order</span>
-        <span>Status</span>
-        <span>Payment</span>
-        <span>Total</span>
-        <span>Created</span>
+    <section class="overview-grid">
+      <article class="card metric-panel">
+        <span class="metric-label">Need attention</span>
+        <strong>{liveOrders.length}</strong>
+        <p>{liveOrders.length ? "Paid or active orders in the queue right now." : "No urgent orders waiting."}</p>
+      </article>
+      <article class="card metric-panel">
+        <span class="metric-label">Paid orders</span>
+        <strong>{paidOrders.length}</strong>
+        <p>Orders confirmed by Stripe and ready for fulfillment.</p>
+      </article>
+      <article class="card metric-panel">
+        <span class="metric-label">Recorded revenue</span>
+        <strong>{format(revenue)}</strong>
+        <p>Total of orders currently marked paid.</p>
+      </article>
+      <article class="card metric-panel spotlight">
+        <span class="metric-label">Latest order</span>
+        <strong>{newestOrder?.orderNo ?? "No orders yet"}</strong>
+        <p>{newestOrder ? `${statusLabel(newestOrder.orderStatus)} · ${format(newestOrder.totalAmount)}` : "Waiting for the first live order."}</p>
+      </article>
+    </section>
+
+    <section class="card priority-panel">
+      <div class="priority-copy">
+        <p class="eyebrow priority-eyebrow">Priority</p>
+        <h2>{liveOrders.length ? `${liveOrders.length} orders need action` : "Queue is clear"}</h2>
+        <p>{liveOrders.length ? "Handle the highlighted orders first. The strongest accent is reserved for paid orders waiting to be accepted." : "Keep alerts on. New paid orders will trigger a notification and refresh the board."}</p>
       </div>
-      {orders.length ? (
-        orders.map((order) => (
-          <a class="table-row" href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
+      <div class="priority-list">
+        {liveOrders.slice(0, 3).map((order) => (
+          <a class:list={["priority-chip", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
             <span>{order.orderNo}</span>
-            <span>{order.orderStatus.replaceAll("_", " ")}</span>
-            <span>{order.paymentStatus.replaceAll("_", " ")}</span>
-            <span>{format(order.totalAmount)}</span>
-            <span>{new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
+            <strong>{statusLabel(order.orderStatus)}</strong>
           </a>
-        ))
+        ))}
+      </div>
+    </section>
+
+    <section class="orders-section">
+      <div class="orders-head">
+        <div>
+          <p class="eyebrow orders-eyebrow">Queue</p>
+          <h2>All orders</h2>
+        </div>
+        <p class="orders-meta">{orders.length} total</p>
+      </div>
+
+      {orders.length ? (
+        <div class="order-list">
+          {orders.map((order) => (
+            <a
+              class:list={["card order-card", orderTone(order)]}
+              href={`/admin/orders/${order.orderNo}`}
+              data-order-id={order.id}
+            >
+              <div class="order-main">
+                <div>
+                  <p class="order-no">{order.orderNo}</p>
+                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <p class="order-subcopy">
+                    {order.items.length} items
+                    {order.fulfillment === "delivery" ? " · delivery" : " · pickup"}
+                    {" · "}
+                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+                <div class="order-total">{format(order.totalAmount)}</div>
+              </div>
+
+              <div class="order-rail">
+                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                  {statusLabel(order.paymentStatus)}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
       ) : (
-        <div class="table-empty">
+        <div class="card table-empty">
           {hasPersistentStore ? "No orders yet." : "No orders visible because persistent storage is not bound on this deployment."}
         </div>
       )}
-    </div>
+    </section>
   </section>
 </BaseLayout>
 
@@ -150,32 +229,45 @@ const format = (value: number) => formatPrice(value, "en");
 
 <style>
   .admin-shell {
-    padding: 140px 0 80px;
+    padding: 140px 0 88px;
   }
   .page-copy {
-    max-width: 760px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 18px 26px;
+    align-items: end;
     margin-bottom: 28px;
+  }
+  .page-copy .section-copy {
+    max-width: 42rem;
+    margin: 0;
   }
   .alert-actions {
     display: flex;
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
-    margin-top: 18px;
   }
   .alert-toggle {
     min-height: 46px;
   }
-  .alert-status {
-    color: var(--muted);
+  .alert-status,
+  .metric-label,
+  .order-no,
+  .orders-meta {
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
   }
+  .alert-status,
+  .orders-meta {
+    color: var(--muted);
+  }
   .storage-warning {
-    margin-bottom: 20px;
+    margin-bottom: 22px;
     padding: 18px 20px;
     color: var(--text);
     line-height: 1.7;
@@ -184,36 +276,233 @@ const format = (value: number) => formatPrice(value, "en");
       linear-gradient(180deg, rgba(241, 182, 107, 0.08), rgba(241, 182, 107, 0.04)),
       var(--panel);
   }
-  .table-card {
-    overflow: hidden;
-  }
-  .table-row {
+  .overview-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr .8fr 1.2fr;
-    gap: 12px;
-    padding: 18px 20px;
-    border-top: 1px solid var(--line);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
   }
-  .table-head {
-    border-top: 0;
+  .metric-panel {
+    padding: 22px;
+    min-height: 172px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+      rgba(22,16,14,.94);
+  }
+  .metric-panel strong {
+    display: block;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1;
+    margin: 10px 0 8px;
+  }
+  .metric-panel p {
+    margin: 0;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 0.8rem;
+    line-height: 1.65;
   }
-  a.table-row:hover {
-    background: rgba(255, 245, 232, 0.03);
+  .metric-label {
+    color: rgba(241, 182, 107, 0.9);
+  }
+  .spotlight {
+    background:
+      radial-gradient(circle at top right, rgba(241,182,107,.22), transparent 38%),
+      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+      rgba(22,16,14,.98);
+  }
+  .priority-panel {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    padding: 22px;
+    margin-bottom: 22px;
+    background:
+      radial-gradient(circle at right top, rgba(195,75,45,.2), transparent 30%),
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)),
+      rgba(19,14,12,.96);
+  }
+  .priority-eyebrow,
+  .orders-eyebrow {
+    margin-bottom: 8px;
+  }
+  .priority-copy h2,
+  .orders-head h2 {
+    margin: 0;
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+  }
+  .priority-copy p:last-child {
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .priority-list {
+    display: grid;
+    gap: 12px;
+    align-content: center;
+  }
+  .priority-chip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+  }
+  .priority-chip span {
+    color: var(--muted);
+  }
+  .priority-chip strong {
+    text-transform: capitalize;
+  }
+  .orders-section {
+    display: grid;
+    gap: 16px;
+  }
+  .orders-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+  }
+  .order-list {
+    display: grid;
+    gap: 14px;
+  }
+  .order-card {
+    padding: 18px 20px;
+    display: grid;
+    gap: 14px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)),
+      rgba(19,14,12,.94);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .order-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(241,182,107,.2);
+  }
+  .order-main,
+  .order-rail {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+  }
+  .order-no {
+    margin: 0 0 10px;
+    color: rgba(241,182,107,.84);
+  }
+  .order-card h3 {
+    margin: 0;
+    font-size: 1.55rem;
+    line-height: 1.05;
+  }
+  .order-subcopy {
+    margin: 8px 0 0;
+    color: var(--muted);
+  }
+  .order-total {
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(241,182,107,.18);
+    background: rgba(241,182,107,.08);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .status-pill,
+  .payment-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .status-pill {
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+  }
+  .status-pill.urgent,
+  .priority-chip.urgent,
+  .order-card.urgent {
+    border-color: rgba(255,143,143,.35);
+    background:
+      linear-gradient(180deg, rgba(255,143,143,.12), rgba(255,143,143,.04)),
+      rgba(33,18,18,.95);
+  }
+  .status-pill.active,
+  .priority-chip.active,
+  .order-card.active {
+    border-color: rgba(241,182,107,.3);
+    background:
+      linear-gradient(180deg, rgba(241,182,107,.1), rgba(241,182,107,.03)),
+      rgba(28,20,16,.95);
+  }
+  .status-pill.done,
+  .priority-chip.done,
+  .order-card.done {
+    border-color: rgba(116,196,166,.25);
+    background:
+      linear-gradient(180deg, rgba(116,196,166,.08), rgba(116,196,166,.03)),
+      rgba(17,24,20,.95);
+  }
+  .status-pill.muted,
+  .priority-chip.muted,
+  .order-card.muted {
+    opacity: 0.78;
+  }
+  .payment-pill {
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .payment-pill.paid {
+    background: rgba(116,196,166,.12);
+    border-color: rgba(116,196,166,.25);
+  }
+  .payment-pill.unpaid {
+    background: rgba(255,143,143,.1);
+    border-color: rgba(255,143,143,.22);
   }
   .table-empty {
-    padding: 24px 20px;
+    padding: 28px 22px;
     color: var(--muted);
   }
-  @media (max-width: 900px) {
-    .table-row {
+  @media (max-width: 1080px) {
+    .overview-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .priority-panel {
       grid-template-columns: 1fr;
     }
-    .table-head {
-      display: none;
+  }
+  @media (max-width: 760px) {
+    .page-copy,
+    .orders-head,
+    .order-main,
+    .order-rail {
+      display: grid;
+    }
+    .overview-grid {
+      grid-template-columns: 1fr;
+    }
+    .metric-panel {
+      min-height: 0;
+    }
+    .order-total {
+      width: fit-content;
+    }
+    .priority-chip {
+      display: grid;
     }
   }
 </style>
