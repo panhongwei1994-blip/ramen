@@ -8,11 +8,6 @@ export const prerender = false;
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const payload = await request.json();
-    const checkout = (payload as { checkout?: { payment?: string } }).checkout;
-    if (checkout?.payment && checkout.payment !== "stripe") {
-      return jsonError("This MVP currently supports Stripe checkout only.", 400);
-    }
-
     const runtimeEnv = getRuntimeEnv(locals);
     const order = await createOrder({
       ...normalizeCreateOrderPayload(payload as Record<string, unknown>),

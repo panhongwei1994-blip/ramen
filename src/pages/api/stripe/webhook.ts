@@ -1,6 +1,13 @@
 import type { APIRoute } from "astro";
 import Stripe from "stripe";
-import { getRuntimeEnv, updateOrder } from "@/lib/orders";
+import {
+  finishWebhookEvent,
+  getRuntimeEnv,
+  markOrderPaidFromCheckoutSession,
+  markOrderPaymentFailed,
+  markOrderRefunded,
+  startWebhookEvent,
+} from "@/lib/orders";
 
 export const prerender = false;
 
@@ -28,62 +35,73 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return new Response("Invalid Stripe signature", { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orderCode = session.metadata?.orderCode;
-
-    if (orderCode) {
-      await updateOrder(
-        orderCode,
-        (current) => ({
-          ...current,
-          status: "paid",
-          paymentStatus: "paid",
-          stripeSessionId: session.id,
-          stripePaymentIntentId:
-            typeof session.payment_intent === "string" ? session.payment_intent : current.stripePaymentIntentId,
-          stripeCustomerEmail: session.customer_details?.email ?? current.stripeCustomerEmail,
-          customerName: session.customer_details?.name ?? current.customerName,
-          customerPhone: session.customer_details?.phone ?? current.customerPhone,
-          address:
-            session.customer_details?.address
-              ? [
-                  session.customer_details.address.line1,
-                  session.customer_details.address.line2,
-                  session.customer_details.address.city,
-                  session.customer_details.address.state,
-                  session.customer_details.address.postal_code,
-                  session.customer_details.address.country,
-                ]
-                  .filter(Boolean)
-                  .join(", ")
-              : current.address,
-        }),
-        runtimeEnv,
-      );
-    }
-  }
-
-  if (event.type === "checkout.session.async_payment_failed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const orderCode = session.metadata?.orderCode;
-
-    if (orderCode) {
-      await updateOrder(
-        orderCode,
-        (current) => ({
-          ...current,
-          status: "payment_failed",
-          paymentStatus: "failed",
-          stripeSessionId: session.id,
-        }),
-        runtimeEnv,
-      );
-    }
-  }
-
-  return new Response(JSON.stringify({ received: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
+  const webhook = await startWebhookEvent({
+    provider: "stripe",
+    eventId: event.id,
+    eventType: event.type,
+    rawPayload: body,
+    runtimeEnv,
   });
+
+  if (webhook.alreadyProcessed) {
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        await markOrderPaidFromCheckoutSession(event.data.object as Stripe.Checkout.Session, body, runtimeEnv);
+        break;
+      }
+      case "checkout.session.async_payment_failed":
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await markOrderPaymentFailed({
+          sessionId: session.id,
+          paymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : "",
+          rawPayload: body,
+          runtimeEnv,
+        });
+        break;
+      }
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        if (typeof charge.payment_intent === "string" && charge.refunded) {
+          await markOrderRefunded({
+            paymentIntentId: charge.payment_intent,
+            rawPayload: body,
+            runtimeEnv,
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    await finishWebhookEvent({
+      provider: "stripe",
+      eventId: event.id,
+      processed: true,
+      runtimeEnv,
+    });
+
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    await finishWebhookEvent({
+      provider: "stripe",
+      eventId: event.id,
+      processed: false,
+      errorMessage: error instanceof Error ? error.message : "Unknown webhook error",
+      runtimeEnv,
+    });
+
+    return new Response("Webhook processing failed", { status: 500 });
+  }
 };

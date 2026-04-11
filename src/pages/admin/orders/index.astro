@@ -1,0 +1,86 @@
+---
+import BaseLayout from "@/components/layout/BaseLayout.astro";
+import { formatPrice } from "@/data/site";
+import { getRuntimeEnv, listOrders } from "@/lib/orders";
+
+export const prerender = false;
+
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+const orders = await listOrders(runtimeEnv);
+const format = (value: number) => formatPrice(value, "en");
+---
+
+<BaseLayout lang="en">
+  <section class="container admin-shell">
+    <div class="page-copy">
+      <p class="eyebrow">Merchant Orders</p>
+      <h1 class="section-title">Live order queue</h1>
+      <p class="section-copy">Minimal merchant view over the persisted order records.</p>
+    </div>
+
+    <div class="card table-card">
+      <div class="table-head table-row">
+        <span>Order</span>
+        <span>Status</span>
+        <span>Payment</span>
+        <span>Total</span>
+        <span>Created</span>
+      </div>
+      {orders.length ? (
+        orders.map((order) => (
+          <a class="table-row" href={`/admin/orders/${order.orderNo}`}>
+            <span>{order.orderNo}</span>
+            <span>{order.orderStatus.replaceAll("_", " ")}</span>
+            <span>{order.paymentStatus.replaceAll("_", " ")}</span>
+            <span>{format(order.totalAmount)}</span>
+            <span>{new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
+          </a>
+        ))
+      ) : (
+        <div class="table-empty">No orders yet.</div>
+      )}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .admin-shell {
+    padding: 140px 0 80px;
+  }
+  .page-copy {
+    max-width: 760px;
+    margin-bottom: 28px;
+  }
+  .table-card {
+    overflow: hidden;
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr .8fr 1.2fr;
+    gap: 12px;
+    padding: 18px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .table-head {
+    border-top: 0;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.8rem;
+  }
+  a.table-row:hover {
+    background: rgba(255, 245, 232, 0.03);
+  }
+  .table-empty {
+    padding: 24px 20px;
+    color: var(--muted);
+  }
+  @media (max-width: 900px) {
+    .table-row {
+      grid-template-columns: 1fr;
+    }
+    .table-head {
+      display: none;
+    }
+  }
+</style>

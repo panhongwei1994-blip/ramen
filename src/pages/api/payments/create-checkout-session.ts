@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { json, jsonError } from "@/lib/http";
-import { normalizeCreateOrderPayload } from "@/lib/order-input";
-import { attachStripeCheckoutSession, createOrder, getRuntimeEnv } from "@/lib/orders";
+import { getOrder, getRuntimeEnv, attachStripeCheckoutSession } from "@/lib/orders";
 import { createStripeCheckoutSessionForOrder } from "@/lib/stripe-checkout";
 
 export const prerender = false;
@@ -18,16 +17,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonError("Stripe key missing. Add STRIPE_SECRET_KEY and redeploy.", 500);
     }
 
-    const payload = await request.json();
-    const checkout = (payload as { checkout?: { payment?: string } }).checkout;
-    if (checkout?.payment && checkout.payment !== "stripe") {
-      return jsonError("This MVP currently supports Stripe checkout only.", 400);
+    const payload = (await request.json()) as { orderId?: string; orderNo?: string };
+    const lookup = cleanString(payload.orderId) || cleanString(payload.orderNo);
+    if (!lookup) {
+      return jsonError("Order id is required.", 400);
     }
 
-    const order = await createOrder({
-      ...normalizeCreateOrderPayload(payload as Record<string, unknown>),
-      runtimeEnv,
-    });
+    const order = await getOrder(lookup, runtimeEnv);
+    if (!order) {
+      return jsonError("Order not found.", 404);
+    }
+    if (order.paymentStatus === "paid") {
+      return jsonError("Order is already paid.", 409);
+    }
 
     const session = await createStripeCheckoutSessionForOrder({
       order,

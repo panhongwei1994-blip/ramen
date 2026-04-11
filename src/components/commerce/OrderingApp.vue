@@ -175,41 +175,7 @@
                 </div>
               </div>
 
-              <div class="choice-group">
-                <span>{{ copy.paymentMethod }}</span>
-                <div class="choice-row">
-                  <button
-                    type="button"
-                    :class="['choice-chip', { active: checkout.payment === 'stripe' }]"
-                    @click="checkout.payment = 'stripe'"
-                  >
-                    <span class="choice-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="6" width="18" height="12" rx="2" />
-                        <path d="M3 10h18" />
-                        <path d="M7 15h3" />
-                      </svg>
-                    </span>
-                    {{ copy.stripe }}
-                  </button>
-                  <button
-                    type="button"
-                    :class="['choice-chip', { active: checkout.payment === 'cash' }]"
-                    @click="checkout.payment = 'cash'"
-                  >
-                    <span class="choice-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="7" width="18" height="10" rx="2" />
-                        <circle cx="12" cy="12" r="2.5" />
-                        <path d="M7 10h.01M17 14h.01" />
-                      </svg>
-                    </span>
-                    {{ copy.cash }}
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="checkout.payment === 'cash'" class="form-grid">
+              <div class="form-grid">
                 <label><span>{{ copy.name }}</span><input v-model="checkout.name" type="text" /></label>
                 <label><span>{{ copy.phone }}</span><input v-model="checkout.phone" type="tel" /></label>
                 <label v-if="checkout.fulfillment === 'delivery'">
@@ -218,15 +184,11 @@
                 </label>
               </div>
 
-              <p v-else class="helper-note">
-                Stripe will collect your name, phone,
-                {{ checkout.fulfillment === "delivery" ? " and delivery address" : " and pickup details" }}
-                on the secure payment screen.
-              </p>
+              <p class="helper-note">Checkout redirects to Stripe. The server persists the order first and recalculates totals before payment.</p>
 
               <div class="checkout-actions">
                 <button class="primary-button checkout-submit" type="button" :disabled="!canPlaceOrder || isSubmitting" @click="placeOrder">
-                  {{ isSubmitting ? "Loading payment..." : copy.placeOrder }}
+                  {{ isSubmitting ? "Redirecting to Stripe..." : copy.placeOrder }}
                 </button>
               </div>
               <p v-if="paymentError" class="error-note">{{ paymentError }}</p>
@@ -252,32 +214,11 @@
       </div>
     </div>
 
-    <div v-if="embeddedCheckoutOpen" class="overlay embedded-overlay" @click.self="closeEmbeddedCheckout">
-      <div class="embedded-modal card">
-        <div class="embedded-handle" aria-hidden="true"></div>
-        <button class="close-button embedded-close" type="button" @click="closeEmbeddedCheckout">×</button>
-        <div class="embedded-topline">
-          <p class="eyebrow-inner embedded-kicker">{{ copy.checkout }}</p>
-          <span v-if="orderCode" class="embedded-code">{{ orderCode }}</span>
-        </div>
-        <div class="embedded-head">
-          <div class="embedded-copy">
-            <h3>Secure Payment</h3>
-            <p>Review the final amount and complete payment in the secure Stripe sheet.</p>
-          </div>
-          <strong class="embedded-total">{{ format(grandTotal) }}</strong>
-        </div>
-        <div v-if="embeddedCheckoutLoading" class="embedded-state">Loading Stripe checkout…</div>
-        <div v-else-if="paymentError" class="embedded-state error-note">{{ paymentError }}</div>
-        <div id="embedded-checkout" :class="{ hidden: embeddedCheckoutLoading || Boolean(paymentError) }"></div>
-      </div>
-    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { loadStripe } from "@stripe/stripe-js";
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { formatPrice, getContent, getLocalizedProducts, normalizeLocale } from "@/data/site";
 
 const CART_STORAGE_KEY = "sumi-ramen-cart";
@@ -307,14 +248,13 @@ const orderPlaced = ref(false);
 const orderCode = ref("");
 const paymentError = ref("");
 const isSubmitting = ref(false);
-const embeddedCheckoutOpen = ref(false);
-const embeddedCheckoutLoading = ref(false);
 const cart = ref<Array<{
   id: string;
   productId: string;
   name: string;
   image: string;
   quantity: number;
+  addOnIds: string[];
   addOnLabels: string[];
   addOnTotal: number;
   notes: string;
@@ -327,10 +267,7 @@ const checkout = reactive({
   phone: "",
   address: "",
   fulfillment: "delivery",
-  payment: "stripe",
 });
-
-let embeddedCheckoutInstance: { destroy?: () => void } | null = null;
 
 const filteredProducts = computed(() =>
   activeCategory.value === "all"
@@ -341,26 +278,20 @@ const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.tota
 const deliveryFee = computed(() => (cart.value.length ? (checkout.fulfillment === "pickup" ? 0 : 4.9) : 0));
 const grandTotal = computed(() => subtotal.value + deliveryFee.value);
 const itemCount = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0));
-const isStripeFlow = computed(() => checkout.payment === "stripe");
 const canContinueContact = computed(() => Boolean(checkout.name.trim() && checkout.phone.trim()));
 const canPlaceOrder = computed(() => {
-  if (isStripeFlow.value) return true;
   const hasContact = canContinueContact.value;
   if (!hasContact) return false;
-  if (checkout.fulfillment === "pickup") return Boolean(checkout.payment);
-  return Boolean(checkout.address.trim() && checkout.payment);
+  if (checkout.fulfillment === "pickup") return true;
+  return Boolean(checkout.address.trim());
 });
 const successTitle = computed(() =>
   checkout.fulfillment === "pickup" ? "Pickup Confirmed" : "Order Confirmed",
 );
 const orderPlacedMessage = computed(() =>
   checkout.fulfillment === "pickup"
-    ? checkout.payment === "cash"
-      ? "Pickup order confirmed. Please pay in cash when you collect your order."
-      : "Pickup order confirmed. Your Stripe payment has been received."
-    : checkout.payment === "cash"
-      ? "Delivery order confirmed. Please pay in cash on delivery."
-      : "Delivery order confirmed. Your Stripe payment has been received.",
+    ? "Pickup order confirmed. Track it from the order detail page."
+    : "Delivery order confirmed. Track it from the order detail page.",
 );
 const modalTotal = computed(() => {
   const addOnTotal = selected.value.addOns
@@ -401,6 +332,7 @@ function pushCartItem(product: (typeof products)[number], quantity: number, sele
       name: product.name,
       image: product.image,
       quantity,
+      addOnIds: selectedAddOnIds,
       addOnLabels: addOns.map((item) => item.label),
       addOnTotal,
       notes: itemNotes,
@@ -436,14 +368,7 @@ function removeItem(id: string) {
 
 function placeOrder() {
   if (!canPlaceOrder.value) return;
-
-  paymentError.value = "";
-  if (checkout.payment === "stripe") {
-    void beginStripeCheckout();
-    return;
-  }
-
-  void createCashOrder();
+  void beginStripeCheckout();
 }
 
 function handleOpenCart() {
@@ -456,7 +381,6 @@ function closeSuccessModal() {
 
 async function beginStripeCheckout() {
   isSubmitting.value = true;
-  embeddedCheckoutLoading.value = true;
   paymentError.value = "";
 
   try {
@@ -469,110 +393,31 @@ async function beginStripeCheckout() {
         lang,
         cart: cart.value,
         checkout,
-        deliveryFee: deliveryFee.value,
       }),
     });
 
     const data = await response.json();
-    const publishableKey = typeof data.publishableKey === "string" ? data.publishableKey.trim() : "";
-    const clientSecret = typeof data.clientSecret === "string" ? data.clientSecret.trim() : "";
+    const checkoutUrl = typeof data.checkoutUrl === "string" ? data.checkoutUrl.trim() : "";
 
-    if (!response.ok || !clientSecret || !publishableKey) {
+    if (!response.ok || !checkoutUrl) {
       throw new Error(
         data.error ||
           "Unable to start Stripe checkout. Check your Cloudflare Workers Stripe variables.",
       );
     }
 
-    if (!publishableKey.startsWith("pk_")) {
-      throw new Error("Stripe publishable key is invalid. Recheck STRIPE_PUBLISHABLE_KEY in your Worker variables.");
-    }
-
-    if (!clientSecret.startsWith("cs_")) {
-      throw new Error("Stripe checkout session is invalid. Recreate the session and try again.");
-    }
-
-    embeddedCheckoutOpen.value = true;
     orderCode.value = data.orderCode ?? "";
-
-    await nextTick();
-
-    const stripe = await loadStripe(publishableKey);
-    if (!stripe) {
-      throw new Error("Unable to load Stripe checkout.");
+    if (typeof window !== "undefined") {
+      window.location.assign(checkoutUrl);
     }
-
-    embeddedCheckoutInstance?.destroy?.();
-    embeddedCheckoutInstance = await stripe.createEmbeddedCheckoutPage({
-      clientSecret,
-      onComplete: handleEmbeddedCheckoutComplete,
-    });
-
-    embeddedCheckoutInstance.mount("#embedded-checkout");
   } catch (error) {
     paymentError.value =
       error instanceof Error
         ? error.message
         : "Unable to start Stripe checkout. Check your Cloudflare Workers Stripe variables.";
-    embeddedCheckoutOpen.value = true;
-  } finally {
-    embeddedCheckoutLoading.value = false;
-    isSubmitting.value = false;
-  }
-}
-
-async function createCashOrder() {
-  isSubmitting.value = true;
-
-  try {
-    const response = await fetch("/api/orders/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        lang,
-        cart: cart.value,
-        checkout,
-        deliveryFee: deliveryFee.value,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.orderCode) {
-      throw new Error(data.error || "Unable to create order.");
-    }
-
-    orderCode.value = data.orderCode;
-    orderPlaced.value = true;
-    cart.value = [];
-    cartOpen.value = false;
-  } catch (error) {
-    paymentError.value = error instanceof Error ? error.message : "Unable to create order.";
   } finally {
     isSubmitting.value = false;
   }
-}
-
-async function handleEmbeddedCheckoutComplete() {
-  embeddedCheckoutInstance?.destroy?.();
-  embeddedCheckoutInstance = null;
-  embeddedCheckoutOpen.value = false;
-  embeddedCheckoutLoading.value = false;
-  paymentError.value = "";
-
-  await nextTick();
-
-  orderPlaced.value = true;
-  cart.value = [];
-  cartOpen.value = false;
-}
-
-function closeEmbeddedCheckout() {
-  embeddedCheckoutInstance?.destroy?.();
-  embeddedCheckoutInstance = null;
-  embeddedCheckoutOpen.value = false;
-  embeddedCheckoutLoading.value = false;
 }
 
 onMounted(() => {
@@ -590,12 +435,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("open-cart", handleOpenCart);
-  embeddedCheckoutInstance?.destroy?.();
-  embeddedCheckoutInstance = null;
 });
 
-watch([cartOpen, productOpen, embeddedCheckoutOpen], ([cartState, productState, embeddedState]) => {
-  document.documentElement.style.overflow = cartState || productState || embeddedState ? "hidden" : "";
+watch([cartOpen, productOpen], ([cartState, productState]) => {
+  document.documentElement.style.overflow = cartState || productState ? "hidden" : "";
 });
 
 watch(

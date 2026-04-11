@@ -1,0 +1,189 @@
+---
+import BaseLayout from "@/components/layout/BaseLayout.astro";
+import { formatPrice } from "@/data/site";
+import { getOrderByOrderNo, getRuntimeEnv } from "@/lib/orders";
+
+export const prerender = false;
+
+const orderNo = Astro.params.orderNo ?? "";
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
+
+if (!order) {
+  Astro.response.status = 404;
+}
+
+const lang = order?.lang ?? "en";
+const format = (value: number) => formatPrice(value, lang);
+const statusLabel = (value: string) => value.replaceAll("_", " ");
+---
+
+<BaseLayout lang={lang}>
+  <section class="container page-shell">
+    <div class="page-copy">
+      <p class="eyebrow">Order Tracking</p>
+      <h1 class="section-title">{order ? `Order ${order.orderNo}` : "Order not found"}</h1>
+      <p class="section-copy">
+        {
+          order
+            ? "This page reflects the server-side order record. Payment confirmation comes from the Stripe webhook, not the redirect."
+            : "We could not find that order number."
+        }
+      </p>
+    </div>
+
+    {order ? (
+      <div class="page-grid">
+        <section class="card page-card">
+          <div class="status-row">
+            <div>
+              <span class="status-label">Order status</span>
+              <strong>{statusLabel(order.orderStatus)}</strong>
+            </div>
+            <div>
+              <span class="status-label">Payment status</span>
+              <strong>{statusLabel(order.paymentStatus)}</strong>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <span class="status-label">Customer</span>
+              <strong>{order.customerName}</strong>
+              <p>{order.phone}</p>
+            </div>
+            <div>
+              <span class="status-label">Fulfillment</span>
+              <strong>{order.fulfillment}</strong>
+              <p>{order.address || "Pickup at the store"}</p>
+            </div>
+          </div>
+
+          <div class="line-items">
+            {order.items.map((item) => (
+              <article class="line-item">
+                <img src={item.imageUrl} alt={item.productName} />
+                <div>
+                  <div class="line-head">
+                    <strong>{item.productName}</strong>
+                    <strong>{format(item.subtotal)}</strong>
+                  </div>
+                  <p>{format(item.unitPrice)} each × {item.quantity}</p>
+                  {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
+                  {item.note ? <p>{item.note}</p> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div class="totals">
+            <div><span>Items</span><strong>{format(order.itemsAmount)}</strong></div>
+            <div><span>Delivery</span><strong>{format(order.deliveryFee)}</strong></div>
+            <div><span>Total</span><strong>{format(order.totalAmount)}</strong></div>
+          </div>
+        </section>
+
+        <section class="card page-card">
+          <h2>Timeline</h2>
+          <div class="timeline">
+            {order.timeline.map((event) => (
+              <article class="timeline-item">
+                <strong>{event.message}</strong>
+                <span>{new Date(event.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+    ) : null}
+  </section>
+</BaseLayout>
+
+<style>
+  .page-shell {
+    padding: 140px 0 80px;
+  }
+  .page-copy {
+    max-width: 760px;
+    margin-bottom: 28px;
+  }
+  .page-grid {
+    display: grid;
+    gap: 20px;
+  }
+  .page-card {
+    padding: 24px;
+  }
+  .status-row,
+  .detail-grid,
+  .totals {
+    display: grid;
+    gap: 16px;
+  }
+  .detail-grid,
+  .status-row {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .status-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .detail-grid p,
+  .line-item p,
+  .timeline-item span {
+    margin: 6px 0 0;
+    color: var(--muted);
+  }
+  .line-items,
+  .timeline {
+    display: grid;
+    gap: 14px;
+    margin-top: 22px;
+  }
+  .line-item,
+  .timeline-item {
+    display: grid;
+    gap: 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+  }
+  .line-item {
+    grid-template-columns: 88px 1fr;
+  }
+  .line-item img {
+    width: 88px;
+    height: 88px;
+    border-radius: 18px;
+    object-fit: cover;
+  }
+  .line-head,
+  .totals div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .totals {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  h2 {
+    margin: 0;
+  }
+  @media (max-width: 720px) {
+    .page-shell {
+      padding-top: 120px;
+    }
+    .line-item {
+      grid-template-columns: 1fr;
+    }
+    .line-item img {
+      width: 100%;
+      max-width: 180px;
+    }
+  }
+</style>

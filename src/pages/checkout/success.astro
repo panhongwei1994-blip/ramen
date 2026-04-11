@@ -1,0 +1,80 @@
+---
+import BaseLayout from "@/components/layout/BaseLayout.astro";
+import { getOrderByOrderNo, getRuntimeEnv } from "@/lib/orders";
+
+export const prerender = false;
+
+const orderNo = Astro.url.searchParams.get("order") ?? "";
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
+const orderPath = order ? `/orders/${order.orderNo}` : "/";
+---
+
+<BaseLayout lang={order?.lang ?? "en"}>
+  <section class="container success-shell">
+    <div class="card success-card">
+      <p class="eyebrow">Stripe Checkout</p>
+      <h1 class="section-title">Return received</h1>
+      <p class="section-copy">
+        Stripe redirects here before or after webhook processing. The authoritative order state is the server record.
+      </p>
+
+      {order ? (
+        <>
+          <div class="summary-grid">
+            <div>
+              <span class="summary-label">Order</span>
+              <strong>{order.orderNo}</strong>
+            </div>
+            <div>
+              <span class="summary-label">Order status</span>
+              <strong>{order.orderStatus.replaceAll("_", " ")}</strong>
+            </div>
+            <div>
+              <span class="summary-label">Payment status</span>
+              <strong>{order.paymentStatus.replaceAll("_", " ")}</strong>
+            </div>
+          </div>
+          <a class="pill-button" href={orderPath}>View order details</a>
+        </>
+      ) : (
+        <a class="pill-button" href="/">Back to menu</a>
+      )}
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  try {
+    window.localStorage.removeItem("sumi-ramen-cart");
+  } catch {
+    // Ignore storage access issues.
+  }
+</script>
+
+<style>
+  .success-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 120px 0 60px;
+  }
+  .success-card {
+    width: min(680px, 100%);
+    padding: 28px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 28px 0;
+  }
+  .summary-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+</style>

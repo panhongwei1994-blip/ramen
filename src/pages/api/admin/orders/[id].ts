@@ -4,14 +4,14 @@ import { getOrder, getPaymentByOrderId, getRuntimeEnv } from "@/lib/orders";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url, locals }) => {
-  const orderLookup = url.searchParams.get("orderCode") ?? url.searchParams.get("orderNo") ?? url.searchParams.get("id");
-  if (!orderLookup) {
-    return jsonError("Order lookup is required.", 400);
+export const GET: APIRoute = async ({ params, locals }) => {
+  const lookup = params.id;
+  if (!lookup) {
+    return jsonError("Order id is required.", 400);
   }
 
   const runtimeEnv = getRuntimeEnv(locals);
-  const order = await getOrder(orderLookup, runtimeEnv);
+  const order = await getOrder(lookup, runtimeEnv);
   if (!order) {
     return jsonError("Order not found.", 404);
   }
@@ -19,9 +19,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
   const payment = await getPaymentByOrderId(order.id, runtimeEnv);
   return json({
     order,
-    orderId: order.id,
-    orderNo: order.orderNo,
-    orderCode: order.orderNo,
     payment,
   });
 };

@@ -2,10 +2,9 @@
   "name": "ramen",
   "compatibility_date": "2026-04-10",
   "compatibility_flags": ["nodejs_compat"],
-  // Add real KV namespace IDs before relying on persistent sessions/orders in production.
+  // Add a real KV namespace before relying on persistent orders in production.
   // "kv_namespaces": [
-  //   { "binding": "ORDERS", "id": "replace-with-orders-kv-id" },
-  //   { "binding": "SESSION", "id": "replace-with-session-kv-id" }
+  //   { "binding": "ORDERS", "id": "replace-with-orders-kv-id" }
   // ],
   "main": "dist/_worker.js/index.js",
   "assets": {
