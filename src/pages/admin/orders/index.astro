@@ -107,7 +107,7 @@ function orderTone(order: OrderRecord) {
       {completedOrders.length ? (
         <div class="order-list">
           {completedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -145,7 +145,7 @@ function orderTone(order: OrderRecord) {
         </div>
         <div class="order-list">
           {closedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -176,13 +176,48 @@ function orderTone(order: OrderRecord) {
   const alertButton = document.getElementById("enable-order-alerts");
   const alertStatus = document.getElementById("order-alert-status");
   const rowNodes = document.querySelectorAll("[data-order-id]");
-  const seenOrders = new Set(Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean));
+  const storageKey = "sumi-ramen-order-alerts-enabled";
+  const seenOrdersKey = "sumi-ramen-seen-orders";
+  const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
+  const seenOrders = new Set(initialOrderIds);
   let audioContext;
   let alertsEnabled = false;
+
+  try {
+    const storedSeenOrders = JSON.parse(window.localStorage.getItem(seenOrdersKey) || "[]");
+    if (Array.isArray(storedSeenOrders)) {
+      storedSeenOrders.forEach((id) => {
+        if (typeof id === "string" && id) {
+          seenOrders.add(id);
+        }
+      });
+    }
+  } catch {
+    // Ignore malformed storage data.
+  }
+
+  const persistSeenOrders = () => {
+    try {
+      window.localStorage.setItem(seenOrdersKey, JSON.stringify(Array.from(seenOrders)));
+    } catch {
+      // Ignore storage failures.
+    }
+  };
+
+  persistSeenOrders();
 
   const setStatus = (message) => {
     if (alertStatus) {
       alertStatus.textContent = message;
+    }
+  };
+
+  const setAlertsEnabled = (enabled) => {
+    alertsEnabled = enabled;
+    try {
+      window.localStorage.setItem(storageKey, enabled ? "true" : "false");
+    } catch {
+      // Ignore storage failures.
     }
   };
 
@@ -226,6 +261,7 @@ function orderTone(order: OrderRecord) {
 
       if (newOrders.length) {
         newOrders.forEach((order) => seenOrders.add(order.id));
+        persistSeenOrders();
         notifyNewOrder(newOrders[0]);
         setStatus(`New order: ${newOrders[0].orderNo}`);
         window.setTimeout(() => window.location.reload(), 1200);
@@ -253,7 +289,7 @@ function orderTone(order: OrderRecord) {
         await Notification.requestPermission().catch(() => "default");
       }
 
-      alertsEnabled = true;
+      setAlertsEnabled(true);
       alertButton.disabled = true;
       setStatus("Alerts on");
       window.setInterval(() => {
@@ -261,6 +297,20 @@ function orderTone(order: OrderRecord) {
       }, 12000);
       void pollOrders();
     });
+  }
+
+  try {
+    if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
+      setAlertsEnabled(true);
+      alertButton.disabled = true;
+      setStatus("Alerts on");
+      window.setInterval(() => {
+        void pollOrders();
+      }, 12000);
+      void pollOrders();
+    }
+  } catch {
+    // Ignore storage failures.
   }
 </script>
 
