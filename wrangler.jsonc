@@ -2,6 +2,13 @@
   "name": "ramen",
   "compatibility_date": "2026-04-10",
   "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ramen-orders",
+      "database_id": "0d0ab6bf-e060-4ee3-8e12-b0d1302be26b"
+    }
+  ],
   "kv_namespaces": [
     { "binding": "ORDERS", "id": "66a27c8a2c3a4d719956c2d4c0a663a3" }
   ],

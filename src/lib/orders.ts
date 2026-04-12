@@ -16,6 +16,18 @@ export type FulfillmentMethod = "delivery" | "pickup";
 export type PaymentProvider = "stripe";
 
 export type RuntimeEnv = {
+  DB?: {
+    prepare(query: string): {
+      bind(...values: unknown[]): {
+        first<T = Record<string, unknown>>(): Promise<T | null>;
+        all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
+        run(): Promise<unknown>;
+      };
+      first<T = Record<string, unknown>>(): Promise<T | null>;
+      all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
+      run(): Promise<unknown>;
+    };
+  };
   ORDERS?: {
     get(key: string, type?: "json" | "text"): Promise<unknown>;
     put(key: string, value: string): Promise<void>;
@@ -153,6 +165,68 @@ const PAYMENT_SESSION_PREFIX = "payment-session:";
 const PAYMENT_INTENT_PREFIX = "payment-intent:";
 const WEBHOOK_PREFIX = "webhook:";
 
+type OrderRow = {
+  id: string;
+  order_no: string;
+  lang: string;
+  currency: "usd";
+  fulfillment: FulfillmentMethod;
+  customer_name: string;
+  phone: string;
+  address: string;
+  remark: string;
+  items_amount: number;
+  delivery_fee: number;
+  total_amount: number;
+  payment_status: PaymentStatus;
+  order_status: OrderStatus;
+  stripe_checkout_session_id: string;
+  stripe_payment_intent_id: string;
+  created_at: string;
+  paid_at: string;
+  updated_at: string;
+  timeline_json: string;
+};
+
+type OrderItemRow = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  product_name: string;
+  image_url: string;
+  unit_price: number;
+  quantity: number;
+  subtotal: number;
+  add_ons_json: string;
+  note: string;
+};
+
+type PaymentRow = {
+  id: string;
+  order_id: string;
+  provider: PaymentProvider;
+  provider_session_id: string;
+  provider_payment_intent_id: string;
+  amount: number;
+  currency: "usd";
+  status: PaymentStatus;
+  raw_payload: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type WebhookEventRow = {
+  id: string;
+  provider: PaymentProvider;
+  event_id: string;
+  event_type: string;
+  processed: number;
+  raw_payload: string;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["paid_waiting_accept", "cancelled"],
   paid_waiting_accept: ["accepted", "cancelled", "refunded"],
@@ -217,12 +291,395 @@ function getOrdersBinding(runtimeEnv?: RuntimeEnv) {
   return runtimeEnv?.ORDERS;
 }
 
+function getDbBinding(runtimeEnv?: RuntimeEnv) {
+  return runtimeEnv?.DB;
+}
+
 export function getRuntimeEnv(locals?: unknown) {
   return (locals as { runtime?: { env?: RuntimeEnv } })?.runtime?.env;
 }
 
 export function hasPersistentOrderStore(runtimeEnv?: RuntimeEnv) {
-  return Boolean(getOrdersBinding(runtimeEnv));
+  return Boolean(getDbBinding(runtimeEnv) || getOrdersBinding(runtimeEnv));
+}
+
+function parseJson<T>(value: string, fallback: T): T {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function rowToOrderItem(row: OrderItemRow): OrderItemRecord {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    productId: row.product_id,
+    productName: row.product_name,
+    imageUrl: row.image_url,
+    unitPrice: Number(row.unit_price),
+    quantity: Number(row.quantity),
+    subtotal: Number(row.subtotal),
+    addOns: parseJson<CatalogAddOn[]>(row.add_ons_json, []),
+    note: row.note,
+  };
+}
+
+function rowToPayment(row: PaymentRow): PaymentRecord {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    provider: row.provider,
+    providerSessionId: row.provider_session_id,
+    providerPaymentIntentId: row.provider_payment_intent_id,
+    amount: Number(row.amount),
+    currency: row.currency,
+    status: row.status,
+    rawPayload: row.raw_payload,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function rowToWebhookEvent(row: WebhookEventRow): WebhookEventRecord {
+  return {
+    id: row.id,
+    provider: row.provider,
+    eventId: row.event_id,
+    eventType: row.event_type,
+    processed: Boolean(row.processed),
+    rawPayload: row.raw_payload,
+    errorMessage: row.error_message,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function getOrderItemsFromD1(orderId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return [];
+
+  const result = await db
+    .prepare(
+      `SELECT id, order_id, product_id, product_name, image_url, unit_price, quantity, subtotal, add_ons_json, note
+       FROM order_items
+       WHERE order_id = ?
+       ORDER BY rowid ASC`,
+    )
+    .bind(orderId)
+    .all<OrderItemRow>();
+
+  return result.results.map(rowToOrderItem);
+}
+
+async function rowToOrder(row: OrderRow, runtimeEnv?: RuntimeEnv): Promise<OrderRecord> {
+  return {
+    id: row.id,
+    orderNo: row.order_no,
+    lang: row.lang,
+    currency: row.currency,
+    fulfillment: row.fulfillment,
+    customerName: row.customer_name,
+    phone: row.phone,
+    address: row.address,
+    remark: row.remark,
+    itemsAmount: Number(row.items_amount),
+    deliveryFee: Number(row.delivery_fee),
+    totalAmount: Number(row.total_amount),
+    paymentStatus: row.payment_status,
+    orderStatus: row.order_status,
+    stripeCheckoutSessionId: row.stripe_checkout_session_id,
+    stripePaymentIntentId: row.stripe_payment_intent_id,
+    createdAt: row.created_at,
+    paidAt: row.paid_at,
+    updatedAt: row.updated_at,
+    items: await getOrderItemsFromD1(row.id, runtimeEnv),
+    timeline: parseJson<OrderLifecycleEvent[]>(row.timeline_json, []),
+  };
+}
+
+async function getOrderByIdFromD1(orderId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, order_no, lang, currency, fulfillment, customer_name, phone, address, remark,
+              items_amount, delivery_fee, total_amount, payment_status, order_status,
+              stripe_checkout_session_id, stripe_payment_intent_id, created_at, paid_at, updated_at, timeline_json
+       FROM orders
+       WHERE id = ?
+       LIMIT 1`,
+    )
+    .bind(orderId)
+    .first<OrderRow>();
+
+  return row ? await rowToOrder(row, runtimeEnv) : null;
+}
+
+async function getOrderByOrderNoFromD1(orderNo: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, order_no, lang, currency, fulfillment, customer_name, phone, address, remark,
+              items_amount, delivery_fee, total_amount, payment_status, order_status,
+              stripe_checkout_session_id, stripe_payment_intent_id, created_at, paid_at, updated_at, timeline_json
+       FROM orders
+       WHERE order_no = ?
+       LIMIT 1`,
+    )
+    .bind(orderNo)
+    .first<OrderRow>();
+
+  return row ? await rowToOrder(row, runtimeEnv) : null;
+}
+
+async function listOrdersFromD1(runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return [];
+
+  const result = await db
+    .prepare(
+      `SELECT id, order_no, lang, currency, fulfillment, customer_name, phone, address, remark,
+              items_amount, delivery_fee, total_amount, payment_status, order_status,
+              stripe_checkout_session_id, stripe_payment_intent_id, created_at, paid_at, updated_at, timeline_json
+       FROM orders
+       ORDER BY created_at DESC`,
+    )
+    .all<OrderRow>();
+
+  return await Promise.all(result.results.map(async (row) => await rowToOrder(row, runtimeEnv)));
+}
+
+async function saveOrderToD1(order: OrderRecord, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return;
+
+  await db
+    .prepare(
+      `INSERT INTO orders (
+          id, order_no, lang, currency, fulfillment, customer_name, phone, address, remark,
+          items_amount, delivery_fee, total_amount, payment_status, order_status,
+          stripe_checkout_session_id, stripe_payment_intent_id, created_at, paid_at, updated_at, timeline_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          order_no = excluded.order_no,
+          lang = excluded.lang,
+          currency = excluded.currency,
+          fulfillment = excluded.fulfillment,
+          customer_name = excluded.customer_name,
+          phone = excluded.phone,
+          address = excluded.address,
+          remark = excluded.remark,
+          items_amount = excluded.items_amount,
+          delivery_fee = excluded.delivery_fee,
+          total_amount = excluded.total_amount,
+          payment_status = excluded.payment_status,
+          order_status = excluded.order_status,
+          stripe_checkout_session_id = excluded.stripe_checkout_session_id,
+          stripe_payment_intent_id = excluded.stripe_payment_intent_id,
+          created_at = excluded.created_at,
+          paid_at = excluded.paid_at,
+          updated_at = excluded.updated_at,
+          timeline_json = excluded.timeline_json`,
+    )
+    .bind(
+      order.id,
+      order.orderNo,
+      order.lang,
+      order.currency,
+      order.fulfillment,
+      order.customerName,
+      order.phone,
+      order.address,
+      order.remark,
+      order.itemsAmount,
+      order.deliveryFee,
+      order.totalAmount,
+      order.paymentStatus,
+      order.orderStatus,
+      order.stripeCheckoutSessionId,
+      order.stripePaymentIntentId,
+      order.createdAt,
+      order.paidAt,
+      order.updatedAt,
+      JSON.stringify(order.timeline),
+    )
+    .run();
+
+  await db.prepare(`DELETE FROM order_items WHERE order_id = ?`).bind(order.id).run();
+
+  for (const item of order.items) {
+    await db
+      .prepare(
+        `INSERT INTO order_items (
+            id, order_id, product_id, product_name, image_url, unit_price, quantity, subtotal, add_ons_json, note
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            order_id = excluded.order_id,
+            product_id = excluded.product_id,
+            product_name = excluded.product_name,
+            image_url = excluded.image_url,
+            unit_price = excluded.unit_price,
+            quantity = excluded.quantity,
+            subtotal = excluded.subtotal,
+            add_ons_json = excluded.add_ons_json,
+            note = excluded.note`,
+      )
+      .bind(
+        item.id,
+        item.orderId,
+        item.productId,
+        item.productName,
+        item.imageUrl,
+        item.unitPrice,
+        item.quantity,
+        item.subtotal,
+        JSON.stringify(item.addOns),
+        item.note,
+      )
+      .run();
+  }
+}
+
+async function getPaymentByOrderIdFromD1(orderId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, order_id, provider, provider_session_id, provider_payment_intent_id, amount, currency, status, raw_payload, created_at, updated_at
+       FROM payments
+       WHERE order_id = ?
+       LIMIT 1`,
+    )
+    .bind(orderId)
+    .first<PaymentRow>();
+
+  return row ? rowToPayment(row) : null;
+}
+
+async function getPaymentBySessionIdFromD1(sessionId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, order_id, provider, provider_session_id, provider_payment_intent_id, amount, currency, status, raw_payload, created_at, updated_at
+       FROM payments
+       WHERE provider_session_id = ?
+       LIMIT 1`,
+    )
+    .bind(sessionId)
+    .first<PaymentRow>();
+
+  return row ? rowToPayment(row) : null;
+}
+
+async function getPaymentByIntentIdFromD1(paymentIntentId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, order_id, provider, provider_session_id, provider_payment_intent_id, amount, currency, status, raw_payload, created_at, updated_at
+       FROM payments
+       WHERE provider_payment_intent_id = ?
+       LIMIT 1`,
+    )
+    .bind(paymentIntentId)
+    .first<PaymentRow>();
+
+  return row ? rowToPayment(row) : null;
+}
+
+async function savePaymentToD1(payment: PaymentRecord, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return;
+
+  await db
+    .prepare(
+      `INSERT INTO payments (
+          id, order_id, provider, provider_session_id, provider_payment_intent_id, amount, currency, status, raw_payload, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          order_id = excluded.order_id,
+          provider = excluded.provider,
+          provider_session_id = excluded.provider_session_id,
+          provider_payment_intent_id = excluded.provider_payment_intent_id,
+          amount = excluded.amount,
+          currency = excluded.currency,
+          status = excluded.status,
+          raw_payload = excluded.raw_payload,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at`,
+    )
+    .bind(
+      payment.id,
+      payment.orderId,
+      payment.provider,
+      payment.providerSessionId,
+      payment.providerPaymentIntentId,
+      payment.amount,
+      payment.currency,
+      payment.status,
+      payment.rawPayload,
+      payment.createdAt,
+      payment.updatedAt,
+    )
+    .run();
+}
+
+async function getWebhookEventFromD1(provider: PaymentProvider, eventId: string, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT id, provider, event_id, event_type, processed, raw_payload, error_message, created_at, updated_at
+       FROM webhook_events
+       WHERE provider = ? AND event_id = ?
+       LIMIT 1`,
+    )
+    .bind(provider, eventId)
+    .first<WebhookEventRow>();
+
+  return row ? rowToWebhookEvent(row) : null;
+}
+
+async function saveWebhookEventToD1(event: WebhookEventRecord, runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return;
+
+  await db
+    .prepare(
+      `INSERT INTO webhook_events (
+          id, provider, event_id, event_type, processed, raw_payload, error_message, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(event_id) DO UPDATE SET
+          provider = excluded.provider,
+          event_type = excluded.event_type,
+          processed = excluded.processed,
+          raw_payload = excluded.raw_payload,
+          error_message = excluded.error_message,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at`,
+    )
+    .bind(
+      event.id,
+      event.provider,
+      event.eventId,
+      event.eventType,
+      event.processed ? 1 : 0,
+      event.rawPayload,
+      event.errorMessage,
+      event.createdAt,
+      event.updatedAt,
+    )
+    .run();
 }
 
 async function readJson<T>(key: string, runtimeEnv?: RuntimeEnv) {
@@ -413,31 +870,54 @@ function recalculateOrderItems(orderId: string, items: OrderItemInput[], lang?: 
 }
 
 async function saveOrder(order: OrderRecord, runtimeEnv?: RuntimeEnv) {
-  await writeJson(orderKey(order.id), order, runtimeEnv);
-  await writeText(orderNoKey(order.orderNo), order.id, runtimeEnv);
+  if (getDbBinding(runtimeEnv)) {
+    await saveOrderToD1(order, runtimeEnv);
+  }
+
+  if (getOrdersBinding(runtimeEnv) || !getDbBinding(runtimeEnv)) {
+    await writeJson(orderKey(order.id), order, runtimeEnv);
+    await writeText(orderNoKey(order.orderNo), order.id, runtimeEnv);
+  }
 }
 
 async function savePayment(payment: PaymentRecord, runtimeEnv?: RuntimeEnv) {
-  await writeJson(paymentKey(payment.id), payment, runtimeEnv);
-  await writeText(paymentOrderKey(payment.orderId), payment.id, runtimeEnv);
-
-  if (payment.providerSessionId) {
-    await writeText(paymentSessionKey(payment.providerSessionId), payment.id, runtimeEnv);
+  if (getDbBinding(runtimeEnv)) {
+    await savePaymentToD1(payment, runtimeEnv);
   }
-  if (payment.providerPaymentIntentId) {
-    await writeText(paymentIntentKey(payment.providerPaymentIntentId), payment.id, runtimeEnv);
+
+  if (getOrdersBinding(runtimeEnv) || !getDbBinding(runtimeEnv)) {
+    await writeJson(paymentKey(payment.id), payment, runtimeEnv);
+    await writeText(paymentOrderKey(payment.orderId), payment.id, runtimeEnv);
+
+    if (payment.providerSessionId) {
+      await writeText(paymentSessionKey(payment.providerSessionId), payment.id, runtimeEnv);
+    }
+    if (payment.providerPaymentIntentId) {
+      await writeText(paymentIntentKey(payment.providerPaymentIntentId), payment.id, runtimeEnv);
+    }
   }
 }
 
 async function saveWebhookEvent(event: WebhookEventRecord, runtimeEnv?: RuntimeEnv) {
-  await writeJson(webhookKey(event.provider, event.eventId), event, runtimeEnv);
+  if (getDbBinding(runtimeEnv)) {
+    await saveWebhookEventToD1(event, runtimeEnv);
+  }
+
+  if (getOrdersBinding(runtimeEnv) || !getDbBinding(runtimeEnv)) {
+    await writeJson(webhookKey(event.provider, event.eventId), event, runtimeEnv);
+  }
 }
 
 export async function getOrderById(orderId: string, runtimeEnv?: RuntimeEnv) {
+  const fromD1 = await getOrderByIdFromD1(orderId, runtimeEnv);
+  if (fromD1) return fromD1;
   return await readJson<OrderRecord>(orderKey(orderId), runtimeEnv);
 }
 
 export async function getOrderByOrderNo(orderNo: string, runtimeEnv?: RuntimeEnv) {
+  const fromD1 = await getOrderByOrderNoFromD1(orderNo, runtimeEnv);
+  if (fromD1) return fromD1;
+
   const orderId = await readText(orderNoKey(orderNo), runtimeEnv);
   if (!orderId) return null;
   return await getOrderById(orderId, runtimeEnv);
@@ -448,24 +928,43 @@ export async function getOrder(orderLookup: string, runtimeEnv?: RuntimeEnv) {
 }
 
 export async function listOrders(runtimeEnv?: RuntimeEnv) {
+  const d1Orders = await listOrdersFromD1(runtimeEnv);
   const keys = await listOrderKeys(runtimeEnv);
-  const orders = await Promise.all(keys.map(async (key) => await readJson<OrderRecord>(key, runtimeEnv)));
-  return orders
-    .filter((order): order is OrderRecord => Boolean(order))
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  const kvOrders = await Promise.all(keys.map(async (key) => await readJson<OrderRecord>(key, runtimeEnv)));
+  const merged = new Map<string, OrderRecord>();
+
+  for (const order of d1Orders) {
+    merged.set(order.id, order);
+  }
+  for (const order of kvOrders) {
+    if (order) {
+      merged.set(order.id, order);
+    }
+  }
+
+  return Array.from(merged.values()).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 export async function getPaymentByOrderId(orderId: string, runtimeEnv?: RuntimeEnv) {
+  const fromD1 = await getPaymentByOrderIdFromD1(orderId, runtimeEnv);
+  if (fromD1) return fromD1;
+
   const paymentId = await readText(paymentOrderKey(orderId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
 }
 
 async function getPaymentBySessionId(sessionId: string, runtimeEnv?: RuntimeEnv) {
+  const fromD1 = await getPaymentBySessionIdFromD1(sessionId, runtimeEnv);
+  if (fromD1) return fromD1;
+
   const paymentId = await readText(paymentSessionKey(sessionId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
 }
 
 async function getPaymentByIntentId(paymentIntentId: string, runtimeEnv?: RuntimeEnv) {
+  const fromD1 = await getPaymentByIntentIdFromD1(paymentIntentId, runtimeEnv);
+  if (fromD1) return fromD1;
+
   const paymentId = await readText(paymentIntentKey(paymentIntentId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
 }
@@ -646,7 +1145,9 @@ export async function startWebhookEvent(input: {
   rawPayload: string;
   runtimeEnv?: RuntimeEnv;
 }) {
-  const existing = await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv);
+  const existing =
+    (await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv)) ??
+    (await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
   if (existing?.processed) {
     return { alreadyProcessed: true, event: existing };
   }
@@ -678,7 +1179,9 @@ export async function finishWebhookEvent(input: {
   errorMessage?: string;
   runtimeEnv?: RuntimeEnv;
 }) {
-  const existing = await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv);
+  const existing =
+    (await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv)) ??
+    (await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
   if (!existing) return null;
 
   const next = {

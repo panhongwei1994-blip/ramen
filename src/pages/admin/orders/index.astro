@@ -47,7 +47,7 @@ function orderTone(order: OrderRecord) {
 
     {!hasPersistentStore ? (
       <div class="storage-warning card">
-        This deployment is running without the <strong>ORDERS</strong> KV binding. Orders will not persist across requests, so the admin page can appear empty after checkout. For this MVP you do not need a full database yet, but you do need a Cloudflare KV namespace bound as <strong>ORDERS</strong>.
+        This deployment is running without persistent order storage. Bind a D1 database as <strong>DB</strong> or keep the legacy <strong>ORDERS</strong> KV binding enabled, otherwise the admin queue can look empty after checkout.
       </div>
     ) : null}
 

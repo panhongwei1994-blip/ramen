@@ -15,15 +15,16 @@ Astro + Cloudflare Workers + Stripe single-store food delivery MVP.
 
 ## Data model
 
-The MVP keeps the schema simple and stores records in the `ORDERS` KV binding:
+The MVP now uses Cloudflare D1 as the primary order store, with the existing `ORDERS` KV binding kept as a compatibility fallback during the migration.
 
 - `products`: seeded from [`src/data/site.ts`](/Users/pan/Documents/GitHub/sora-ramen/src/data/site.ts) via [`src/lib/catalog.ts`](/Users/pan/Documents/GitHub/sora-ramen/src/lib/catalog.ts)
 - `orders`
-- `order_items` embedded as the order snapshot
+- `order_items`
 - `payments`
 - `webhook_events`
 
-If `ORDERS` is not configured, the app falls back to in-memory storage for local development only.
+The SQL schema lives in [`migrations/0001_create_order_tables.sql`](/Users/pan/Documents/GitHub/sora-ramen/migrations/0001_create_order_tables.sql).
+If neither `DB` nor `ORDERS` is configured, the app falls back to in-memory storage for local development only.
 
 ## Required environment variables
 
@@ -36,7 +37,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 PUBLIC_SITE_URL=http://localhost:4322
 ```
 
-For Cloudflare, set the Stripe values as Worker secrets and bind a KV namespace as `ORDERS`.
+For Cloudflare, set the Stripe values as Worker secrets and bind a D1 database as `DB`. Keeping `ORDERS` bound is still supported for compatibility and rollback safety.
 
 ## Local setup
 
@@ -66,8 +67,31 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a KV namespace 
 
 ## Cloudflare setup
 
-1. Create a KV namespace for orders.
+1. Create a D1 database for orders:
+
+   ```bash
+   wrangler d1 create ramen-orders
+   ```
+
 2. Add the binding to [`wrangler.jsonc`](/Users/pan/Documents/GitHub/sora-ramen/wrangler.jsonc):
+
+   ```jsonc
+   "d1_databases": [
+     {
+       "binding": "DB",
+       "database_name": "ramen-orders",
+       "database_id": "your-d1-database-id"
+     }
+   ]
+   ```
+
+3. Apply the schema:
+
+   ```bash
+   wrangler d1 migrations apply ramen-orders --remote
+   ```
+
+4. Optionally keep the existing KV binding during migration:
 
    ```jsonc
    "kv_namespaces": [
@@ -75,7 +99,7 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a KV namespace 
    ]
    ```
 
-3. Add secrets:
+5. Add secrets:
 
    ```bash
    wrangler secret put STRIPE_SECRET_KEY
@@ -83,7 +107,7 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a KV namespace 
    wrangler secret put STRIPE_WEBHOOK_SECRET
    ```
 
-4. Set `PUBLIC_SITE_URL` to the deployed origin.
+6. Set `PUBLIC_SITE_URL` to the deployed origin.
 
 ## Main routes
 
@@ -104,6 +128,6 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a KV namespace 
 ## Known limitations
 
 - Admin pages are intentionally unauthenticated in this MVP.
-- KV is used for simplicity, so there are no relational queries or transactional guarantees.
-- The webhook idempotency layer is practical for MVP use but not a substitute for a transactional database with unique constraints.
+- D1 gives the order flow structured persistence, but the current migration still keeps KV compatibility code until the cutover is fully complete.
+- The webhook idempotency layer is practical for MVP use, but it still relies on application logic rather than a full unique-constraint reconciliation workflow.
 - Product data is seeded from source code rather than a merchant CMS.
