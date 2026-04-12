@@ -46,10 +46,12 @@ const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` :
               <span class="status-label">Order status</span>
               <strong>{statusLabel(order.orderStatus)}</strong>
             </div>
-            <div>
-              <span class="status-label">Payment status</span>
-              <strong>{statusLabel(order.paymentStatus)}</strong>
-            </div>
+            {order.paymentStatus === "unpaid" ? null : (
+              <div>
+                <span class="status-label">Payment status</span>
+                <strong>{statusLabel(order.paymentStatus)}</strong>
+              </div>
+            )}
           </div>
 
           <div class="detail-grid">
