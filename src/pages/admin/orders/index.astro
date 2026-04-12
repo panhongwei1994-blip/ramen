@@ -18,6 +18,17 @@ const processingOrders = orders.filter((order) => processingStatuses.has(order.o
 const completedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus));
 const closedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus));
 
+type QueueAction = {
+  label: string;
+  endpoint: string;
+  method: "POST";
+  payload?: {
+    status: string;
+    message: string;
+  };
+  tone?: "danger";
+};
+
 function statusLabel(value: string) {
   return value.replaceAll("_", " ");
 }
@@ -28,6 +39,31 @@ function orderTone(order: OrderRecord) {
   if (order.orderStatus === "completed") return "done";
   if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
   return "neutral";
+}
+
+function queueActions(order: OrderRecord): QueueAction[] {
+  switch (order.orderStatus) {
+    case "paid_waiting_accept":
+      return [
+        { label: "Accept", endpoint: "accept", method: "POST" },
+        { label: "Cancel", endpoint: "cancel", method: "POST", tone: "danger" },
+      ];
+    case "accepted":
+      return [
+        { label: "Start cooking", endpoint: "status", method: "POST", payload: { status: "cooking", message: "Merchant started cooking." } },
+        { label: "Cancel", endpoint: "cancel", method: "POST", tone: "danger" },
+      ];
+    case "cooking":
+      return [
+        { label: "Out for delivery", endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
+      ];
+    case "delivering":
+      return [
+        { label: "Complete", endpoint: "status", method: "POST", payload: { status: "completed", message: "Order marked as completed." } },
+      ];
+    default:
+      return [];
+  }
 }
 ---
 
@@ -63,10 +99,10 @@ function orderTone(order: OrderRecord) {
       {processingOrders.length ? (
         <div class="order-list">
           {processingOrders.map((order) => (
-            <a
+            <article
               class:list={["card order-card", orderTone(order)]}
-              href={`/admin/orders/${order.orderNo}`}
               data-order-id={order.id}
+              data-order-no={order.orderNo}
             >
               <div class="order-main">
                 <div>
@@ -81,13 +117,41 @@ function orderTone(order: OrderRecord) {
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
               </div>
+              <div class="order-preview">
+                {order.items.slice(0, 3).map((item) => (
+                  <div class="preview-item">
+                    <img src={item.imageUrl} alt={item.productName} />
+                    <div class="preview-copy">
+                      <strong>{item.productName}</strong>
+                      <span>{item.quantity} × {format(item.subtotal)}</span>
+                    </div>
+                  </div>
+                ))}
+                {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} more items</p> : null}
+              </div>
               <div class="order-rail">
                 <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
                 <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
                   {statusLabel(order.paymentStatus)}
                 </span>
               </div>
-            </a>
+              <div class="order-actions">
+                <a class="detail-link" href={`/admin/orders/${order.orderNo}`}>View details</a>
+                {queueActions(order).map((action) => (
+                  <button
+                    class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
+                    type="button"
+                    data-inline-action="true"
+                    data-order-no={order.orderNo}
+                    data-endpoint={action.endpoint}
+                    data-method={action.method}
+                    data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </article>
           ))}
         </div>
       ) : (
@@ -312,6 +376,51 @@ function orderTone(order: OrderRecord) {
   } catch {
     // Ignore storage failures.
   }
+
+  const inlineButtons = document.querySelectorAll("[data-inline-action='true']");
+  for (const node of inlineButtons) {
+    node.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!(node instanceof HTMLButtonElement)) return;
+      const orderNo = node.dataset.orderNo;
+      const endpoint = node.dataset.endpoint;
+      const method = node.dataset.method || "POST";
+      const rawPayload = node.dataset.payload;
+      const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+
+      if (!orderNo || !endpoint) return;
+
+      node.disabled = true;
+      const previousLabel = node.textContent;
+      node.textContent = "Updating...";
+
+      try {
+        const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          window.alert(data?.error || "Unable to update order.");
+          node.disabled = false;
+          node.textContent = previousLabel;
+          return;
+        }
+
+        window.location.reload();
+      } catch {
+        window.alert("Unable to update order.");
+        node.disabled = false;
+        node.textContent = previousLabel;
+      }
+    });
+  }
 </script>
 
 <style>
@@ -431,11 +540,51 @@ function orderTone(order: OrderRecord) {
     transform: translateY(-2px);
     border-color: rgba(45,108,223,.26);
   }
+  .order-preview {
+    display: grid;
+    gap: 10px;
+  }
+  .preview-item {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(45,108,223,.08);
+  }
+  .preview-item img {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    object-fit: cover;
+    background: rgba(45,108,223,.08);
+  }
+  .preview-copy {
+    display: grid;
+    gap: 4px;
+  }
+  .preview-copy strong {
+    font-size: 0.98rem;
+  }
+  .preview-copy span,
+  .preview-more {
+    color: rgba(18,49,75,.64);
+    font-size: 0.92rem;
+  }
+  .preview-more {
+    margin: 0;
+  }
   .order-main,
   .order-rail {
     display: flex;
     justify-content: space-between;
     gap: 16px;
+    align-items: center;
+  }
+  .order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     align-items: center;
   }
   .order-no {
@@ -511,6 +660,37 @@ function orderTone(order: OrderRecord) {
     background: rgba(207,69,72,.1);
     border-color: rgba(207,69,72,.2);
   }
+  .detail-link,
+  .queue-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.16);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .detail-link {
+    background: #ffffff;
+    color: #174ea6;
+  }
+  .queue-action {
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
+  }
+  .queue-action.danger {
+    background: rgba(207,69,72,.08);
+    border-color: rgba(207,69,72,.18);
+    color: #b42318;
+  }
+  .queue-action:disabled {
+    opacity: 0.6;
+  }
   .table-empty {
     padding: 28px 22px;
     color: rgba(18,49,75,.64);
@@ -525,6 +705,9 @@ function orderTone(order: OrderRecord) {
     }
     .order-total {
       width: fit-content;
+    }
+    .order-actions {
+      align-items: stretch;
     }
   }
 </style>
