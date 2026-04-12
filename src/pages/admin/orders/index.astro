@@ -375,6 +375,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const rowNodes = document.querySelectorAll("[data-order-id]");
       const storageKey = "sumi-ramen-order-alerts-enabled";
       const seenOrdersKey = "sumi-ramen-seen-orders";
+      const alertRefreshDelayMs = 10500;
       const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
       const seenOrders = new Set(initialOrderIds);
       let audioContext;
@@ -490,7 +491,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
             persistSeenOrders();
             notifyNewOrder(newOrders[0]);
             setStatus(`${copy.alertNew}: ${newOrders[0].orderNo}`);
-            window.setTimeout(() => window.location.reload(), 1200);
+            window.setTimeout(() => window.location.reload(), alertRefreshDelayMs);
             return;
           }
 
