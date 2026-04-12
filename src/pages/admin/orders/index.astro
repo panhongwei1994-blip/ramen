@@ -381,6 +381,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
   const seenOrders = new Set(initialOrderIds);
   let audioContext;
   let alertsEnabled = false;
+  let pollTimer = null;
 
   try {
     const storedSeenOrders = JSON.parse(window.localStorage.getItem(seenOrdersKey) || "[]");
@@ -415,11 +416,25 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
   const setAlertsEnabled = (enabled) => {
     alertsEnabled = enabled;
+    if (alertButton instanceof HTMLButtonElement) {
+      alertButton.dataset.enabled = enabled ? "true" : "false";
+      alertButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
     try {
       window.localStorage.setItem(storageKey, enabled ? "true" : "false");
     } catch {
       // Ignore storage failures.
     }
+  };
+
+  const startAlertPolling = () => {
+    setAlertsEnabled(true);
+    setStatus(copy.alertOn);
+    if (pollTimer) return;
+    pollTimer = window.setInterval(() => {
+      void pollOrders();
+    }, 12000);
+    void pollOrders();
   };
 
   const playOrderTone = () => {
@@ -490,25 +505,13 @@ function queueActions(order: OrderRecord): QueueAction[] {
         await Notification.requestPermission().catch(() => "default");
       }
 
-      setAlertsEnabled(true);
-      alertButton.disabled = true;
-      setStatus(copy.alertOn);
-      window.setInterval(() => {
-        void pollOrders();
-      }, 12000);
-      void pollOrders();
+      startAlertPolling();
     });
   }
 
   try {
     if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
-      setAlertsEnabled(true);
-      alertButton.disabled = true;
-      setStatus(copy.alertOn);
-      window.setInterval(() => {
-        void pollOrders();
-      }, 12000);
-      void pollOrders();
+      startAlertPolling();
     }
   } catch {
     // Ignore storage failures.
@@ -630,6 +633,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
     background: #ffffff;
   }
   .lang-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 38px;
     padding: 0 12px;
     border-radius: 999px;
@@ -645,10 +651,17 @@ function queueActions(order: OrderRecord): QueueAction[] {
     color: #174ea6;
   }
   .alert-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 46px;
     border-color: rgba(45,108,223,.16);
     background: #ffffff;
     color: #174ea6;
+  }
+  .alert-toggle[data-enabled="true"] {
+    background: rgba(45,108,223,.08);
+    border-color: rgba(45,108,223,.24);
   }
   .alert-status,
   .order-no,
