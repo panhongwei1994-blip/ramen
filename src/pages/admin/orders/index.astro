@@ -175,7 +175,6 @@ function orderTone(order: OrderRecord) {
   const alertStatus = document.getElementById("order-alert-status");
   const rowNodes = document.querySelectorAll("[data-order-id]");
   const seenOrders = new Set(Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean));
-  let audioContext;
   let alertsEnabled = true;
 
   const setStatus = (message) => {
@@ -184,33 +183,12 @@ function orderTone(order: OrderRecord) {
     }
   };
 
-  const playOrderTone = () => {
-    if (!audioContext) return;
-    const now = audioContext.currentTime;
-    const notes = [740, 988, 740];
-
-    notes.forEach((frequency, index) => {
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.001, now + index * 0.18);
-      gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.start(now + index * 0.18);
-      oscillator.stop(now + index * 0.18 + 0.18);
-    });
-  };
-
   const notifyNewOrder = (order) => {
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("New order received", {
         body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
       });
     }
-    playOrderTone();
   };
 
   const pollOrders = async () => {
@@ -237,20 +215,6 @@ function orderTone(order: OrderRecord) {
   };
 
   const bootAlerts = async () => {
-    try {
-      audioContext = audioContext || new window.AudioContext();
-    } catch {
-      // Ignore audio init failures.
-    }
-
-    if ("Notification" in window && Notification.permission === "default") {
-      try {
-        await Notification.requestPermission();
-      } catch {
-        // Ignore notification permission failures.
-      }
-    }
-
     setStatus("Alerts on");
     window.setInterval(() => {
       void pollOrders();

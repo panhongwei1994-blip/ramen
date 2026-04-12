@@ -66,22 +66,7 @@ function tone(value: string) {
           </div>
         </section>
 
-        <section class="action-panel">
-          {actions.map((action) => (
-            <button
-              class:list={["ghost-button admin-action", "emphasis"]}
-              type="button"
-              data-endpoint={action.endpoint}
-              data-method={action.method}
-              data-payload={action.payload ? JSON.stringify(action.payload) : ""}
-            >
-              {action.label}
-            </button>
-          ))}
-          <div class="notice" id="admin-notice"></div>
-        </section>
-
-        <section class="card admin-card wide-card">
+        <section class="card admin-card wide-card items-priority-card">
           <h2>Items</h2>
           <div class="line-items">
             {order.items.map((item) => (
@@ -99,6 +84,21 @@ function tone(value: string) {
               </article>
             ))}
           </div>
+        </section>
+
+        <section class="action-panel">
+          {actions.map((action) => (
+            <button
+              class:list={["ghost-button admin-action", "emphasis"]}
+              type="button"
+              data-endpoint={action.endpoint}
+              data-method={action.method}
+              data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+            >
+              {action.label}
+            </button>
+          ))}
+          <div class="notice" id="admin-notice"></div>
         </section>
 
         <div class="detail-grid">
@@ -348,6 +348,9 @@ function tone(value: string) {
   }
   .wide-card {
     grid-column: 1 / -1;
+  }
+  .items-priority-card {
+    margin-bottom: 16px;
   }
   .summary-grid {
     display: grid;
