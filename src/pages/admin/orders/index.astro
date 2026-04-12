@@ -353,218 +353,218 @@ function queueActions(order: OrderRecord): QueueAction[] {
         </div>
       </section>
     ) : null}
-  </section>
-</BaseLayout>
 
-<script
-  is:inline
-  type="application/json"
-  id="admin-orders-copy"
-  set:html={JSON.stringify({
-    alertOn: copy.alertOn,
-    alertFailed: copy.alertFailed,
-    alertNew: copy.alertNew,
-    updateError: copy.updateError,
-    updating: copy.updating,
-    notifyTitle: copy.notifyTitle,
-  })}
-/>
+    <script
+      is:inline
+      type="application/json"
+      id="admin-orders-copy"
+      set:html={JSON.stringify({
+        alertOn: copy.alertOn,
+        alertFailed: copy.alertFailed,
+        alertNew: copy.alertNew,
+        updateError: copy.updateError,
+        updating: copy.updating,
+        notifyTitle: copy.notifyTitle,
+      })}
+    />
 
-<script is:inline>
-  const alertButton = document.getElementById("enable-order-alerts");
-  const alertStatus = document.getElementById("order-alert-status");
-  const copyNode = document.getElementById("admin-orders-copy");
-  const rowNodes = document.querySelectorAll("[data-order-id]");
-  const storageKey = "sumi-ramen-order-alerts-enabled";
-  const seenOrdersKey = "sumi-ramen-seen-orders";
-  const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
-  const seenOrders = new Set(initialOrderIds);
-  let audioContext;
-  let alertsEnabled = false;
-  let pollTimer = null;
+    <script is:inline>
+      const alertButton = document.getElementById("enable-order-alerts");
+      const alertStatus = document.getElementById("order-alert-status");
+      const copyNode = document.getElementById("admin-orders-copy");
+      const rowNodes = document.querySelectorAll("[data-order-id]");
+      const storageKey = "sumi-ramen-order-alerts-enabled";
+      const seenOrdersKey = "sumi-ramen-seen-orders";
+      const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
+      const seenOrders = new Set(initialOrderIds);
+      let audioContext;
+      let alertsEnabled = false;
+      let pollTimer = null;
 
-  try {
-    const storedSeenOrders = JSON.parse(window.localStorage.getItem(seenOrdersKey) || "[]");
-    if (Array.isArray(storedSeenOrders)) {
-      storedSeenOrders.forEach((id) => {
-        if (typeof id === "string" && id) {
-          seenOrders.add(id);
-        }
-      });
-    }
-  } catch {
-    // Ignore malformed storage data.
-  }
-
-  const persistSeenOrders = () => {
-    try {
-      window.localStorage.setItem(seenOrdersKey, JSON.stringify(Array.from(seenOrders)));
-    } catch {
-      // Ignore storage failures.
-    }
-  };
-
-  persistSeenOrders();
-
-  const copy = JSON.parse(copyNode?.textContent || "{}");
-
-  const setStatus = (message) => {
-    if (alertStatus) {
-      alertStatus.textContent = message;
-    }
-  };
-
-  const setAlertsEnabled = (enabled) => {
-    alertsEnabled = enabled;
-    if (alertButton instanceof HTMLButtonElement) {
-      alertButton.dataset.enabled = enabled ? "true" : "false";
-      alertButton.setAttribute("aria-pressed", enabled ? "true" : "false");
-    }
-    try {
-      window.localStorage.setItem(storageKey, enabled ? "true" : "false");
-    } catch {
-      // Ignore storage failures.
-    }
-  };
-
-  const startAlertPolling = () => {
-    setAlertsEnabled(true);
-    setStatus(copy.alertOn);
-    if (pollTimer) return;
-    pollTimer = window.setInterval(() => {
-      void pollOrders();
-    }, 12000);
-    void pollOrders();
-  };
-
-  const playOrderTone = () => {
-    if (!audioContext) return;
-    const now = audioContext.currentTime;
-    const notes = [740, 988, 740];
-
-    notes.forEach((frequency, index) => {
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.001, now + index * 0.18);
-      gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.start(now + index * 0.18);
-      oscillator.stop(now + index * 0.18 + 0.18);
-    });
-  };
-
-  const notifyNewOrder = (order) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(copy.notifyTitle, {
-        body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
-      });
-    }
-    playOrderTone();
-  };
-
-  const pollOrders = async () => {
-    if (!alertsEnabled) return;
-
-    try {
-      const response = await fetch("/api/admin/orders");
-      const data = await response.json();
-      const orders = Array.isArray(data?.orders) ? data.orders : [];
-      const newOrders = orders.filter((order) => order?.id && !seenOrders.has(order.id));
-
-      if (newOrders.length) {
-        newOrders.forEach((order) => seenOrders.add(order.id));
-        persistSeenOrders();
-        notifyNewOrder(newOrders[0]);
-        setStatus(`${copy.alertNew}: ${newOrders[0].orderNo}`);
-        window.setTimeout(() => window.location.reload(), 1200);
-        return;
-      }
-
-      setStatus(copy.alertOn);
-    } catch {
-      setStatus(copy.alertFailed);
-    }
-  };
-
-  try {
-    if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
-      startAlertPolling();
-    }
-  } catch {
-    // Ignore storage failures.
-  }
-
-  document.addEventListener("click", async (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    if (!target) return;
-
-    const alertTrigger = target.closest("#enable-order-alerts");
-    if (alertTrigger instanceof HTMLButtonElement) {
-      event.preventDefault();
       try {
-        audioContext = audioContext || new window.AudioContext();
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
+        const storedSeenOrders = JSON.parse(window.localStorage.getItem(seenOrdersKey) || "[]");
+        if (Array.isArray(storedSeenOrders)) {
+          storedSeenOrders.forEach((id) => {
+            if (typeof id === "string" && id) {
+              seenOrders.add(id);
+            }
+          });
         }
       } catch {
-        // Ignore audio init failures.
+        // Ignore malformed storage data.
       }
 
-      if ("Notification" in window && Notification.permission === "default") {
-        await Notification.requestPermission().catch(() => "default");
+      const persistSeenOrders = () => {
+        try {
+          window.localStorage.setItem(seenOrdersKey, JSON.stringify(Array.from(seenOrders)));
+        } catch {
+          // Ignore storage failures.
+        }
+      };
+
+      persistSeenOrders();
+
+      const copy = JSON.parse(copyNode?.textContent || "{}");
+
+      const setStatus = (message) => {
+        if (alertStatus) {
+          alertStatus.textContent = message;
+        }
+      };
+
+      const setAlertsEnabled = (enabled) => {
+        alertsEnabled = enabled;
+        if (alertButton instanceof HTMLButtonElement) {
+          alertButton.dataset.enabled = enabled ? "true" : "false";
+          alertButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+        }
+        try {
+          window.localStorage.setItem(storageKey, enabled ? "true" : "false");
+        } catch {
+          // Ignore storage failures.
+        }
+      };
+
+      const startAlertPolling = () => {
+        setAlertsEnabled(true);
+        setStatus(copy.alertOn);
+        if (pollTimer) return;
+        pollTimer = window.setInterval(() => {
+          void pollOrders();
+        }, 12000);
+        void pollOrders();
+      };
+
+      const playOrderTone = () => {
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        const notes = [740, 988, 740];
+
+        notes.forEach((frequency, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.001, now + index * 0.18);
+          gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(now + index * 0.18);
+          oscillator.stop(now + index * 0.18 + 0.18);
+        });
+      };
+
+      const notifyNewOrder = (order) => {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(copy.notifyTitle, {
+            body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
+          });
+        }
+        playOrderTone();
+      };
+
+      const pollOrders = async () => {
+        if (!alertsEnabled) return;
+
+        try {
+          const response = await fetch("/api/admin/orders");
+          const data = await response.json();
+          const orders = Array.isArray(data?.orders) ? data.orders : [];
+          const newOrders = orders.filter((order) => order?.id && !seenOrders.has(order.id));
+
+          if (newOrders.length) {
+            newOrders.forEach((order) => seenOrders.add(order.id));
+            persistSeenOrders();
+            notifyNewOrder(newOrders[0]);
+            setStatus(`${copy.alertNew}: ${newOrders[0].orderNo}`);
+            window.setTimeout(() => window.location.reload(), 1200);
+            return;
+          }
+
+          setStatus(copy.alertOn);
+        } catch {
+          setStatus(copy.alertFailed);
+        }
+      };
+
+      try {
+        if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
+          startAlertPolling();
+        }
+      } catch {
+        // Ignore storage failures.
       }
 
-      startAlertPolling();
-      return;
-    }
+      document.addEventListener("click", async (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) return;
 
-    const inlineButton = target.closest("[data-inline-action='true']");
-    if (!(inlineButton instanceof HTMLButtonElement)) return;
+        const alertTrigger = target.closest("#enable-order-alerts");
+        if (alertTrigger instanceof HTMLButtonElement) {
+          event.preventDefault();
+          try {
+            audioContext = audioContext || new window.AudioContext();
+            if (audioContext.state === "suspended") {
+              await audioContext.resume();
+            }
+          } catch {
+            // Ignore audio init failures.
+          }
 
-    event.preventDefault();
-    event.stopPropagation();
+          if ("Notification" in window && Notification.permission === "default") {
+            await Notification.requestPermission().catch(() => "default");
+          }
 
-    const orderNo = inlineButton.dataset.orderNo;
-    const endpoint = inlineButton.dataset.endpoint;
-    const method = inlineButton.dataset.method || "POST";
-    const rawPayload = inlineButton.dataset.payload;
-    const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+          startAlertPolling();
+          return;
+        }
 
-    if (!orderNo || !endpoint) return;
+        const inlineButton = target.closest("[data-inline-action='true']");
+        if (!(inlineButton instanceof HTMLButtonElement)) return;
 
-    inlineButton.disabled = true;
-    const previousLabel = inlineButton.textContent;
-    inlineButton.textContent = copy.updating;
+        event.preventDefault();
+        event.stopPropagation();
 
-    try {
-      const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: payload ? JSON.stringify(payload) : undefined,
+        const orderNo = inlineButton.dataset.orderNo;
+        const endpoint = inlineButton.dataset.endpoint;
+        const method = inlineButton.dataset.method || "POST";
+        const rawPayload = inlineButton.dataset.payload;
+        const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+
+        if (!orderNo || !endpoint) return;
+
+        inlineButton.disabled = true;
+        const previousLabel = inlineButton.textContent;
+        inlineButton.textContent = copy.updating;
+
+        try {
+          const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: payload ? JSON.stringify(payload) : undefined,
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            window.alert(data?.error || copy.updateError);
+            inlineButton.disabled = false;
+            inlineButton.textContent = previousLabel;
+            return;
+          }
+
+          window.location.reload();
+        } catch {
+          window.alert(copy.updateError);
+          inlineButton.disabled = false;
+          inlineButton.textContent = previousLabel;
+        }
       });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        window.alert(data?.error || copy.updateError);
-        inlineButton.disabled = false;
-        inlineButton.textContent = previousLabel;
-        return;
-      }
-
-      window.location.reload();
-    } catch {
-      window.alert(copy.updateError);
-      inlineButton.disabled = false;
-      inlineButton.textContent = previousLabel;
-    }
-  });
-</script>
+    </script>
+  </section>
+</BaseLayout>
 
 <style>
   :global(body) {

@@ -263,61 +263,61 @@ function formatDate(value: string) {
         </div>
       </>
     ) : null}
+
+    <script
+      is:inline
+      type="application/json"
+      id="admin-order-detail-copy"
+      set:html={JSON.stringify({
+        updating: copy.updating,
+        updated: copy.updated,
+        requestFailed: copy.requestFailed,
+      })}
+    />
+
+    <script is:inline>
+      const notice = document.getElementById("admin-notice");
+      const orderNo = document.querySelector("[data-order-no]")?.getAttribute("data-order-no") || "";
+      const copyNode = document.getElementById("admin-order-detail-copy");
+      const copy = JSON.parse(copyNode?.textContent || "{}");
+
+      document.addEventListener("click", async (event) => {
+        const target = event.target instanceof Element ? event.target.closest(".admin-action") : null;
+        if (!(target instanceof HTMLButtonElement) || !orderNo) return;
+
+        const endpoint = target.dataset.endpoint;
+        const method = target.dataset.method || "POST";
+        const rawPayload = target.dataset.payload;
+        const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+
+        if (notice) {
+          notice.textContent = copy.updating;
+        }
+
+        const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (notice) {
+            notice.textContent = data.error || copy.requestFailed;
+          }
+          return;
+        }
+
+        if (notice) {
+          notice.textContent = copy.updated;
+        }
+        window.location.reload();
+      });
+    </script>
   </section>
 </BaseLayout>
-
-<script
-  is:inline
-  type="application/json"
-  id="admin-order-detail-copy"
-  set:html={JSON.stringify({
-    updating: copy.updating,
-    updated: copy.updated,
-    requestFailed: copy.requestFailed,
-  })}
-/>
-
-<script is:inline>
-  const notice = document.getElementById("admin-notice");
-  const orderNo = document.querySelector("[data-order-no]")?.getAttribute("data-order-no") || "";
-  const copyNode = document.getElementById("admin-order-detail-copy");
-  const copy = JSON.parse(copyNode?.textContent || "{}");
-
-  document.addEventListener("click", async (event) => {
-    const target = event.target instanceof Element ? event.target.closest(".admin-action") : null;
-    if (!(target instanceof HTMLButtonElement) || !orderNo) return;
-
-    const endpoint = target.dataset.endpoint;
-    const method = target.dataset.method || "POST";
-    const rawPayload = target.dataset.payload;
-    const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
-
-    if (notice) {
-      notice.textContent = copy.updating;
-    }
-
-    const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (notice) {
-        notice.textContent = data.error || copy.requestFailed;
-      }
-      return;
-    }
-
-    if (notice) {
-      notice.textContent = copy.updated;
-    }
-    window.location.reload();
-  });
-</script>
 
 <style>
   :global(body) {
