@@ -5,26 +5,123 @@ import { getOrderByOrderNo, getPaymentByOrderId, getRuntimeEnv } from "@/lib/ord
 
 export const prerender = false;
 
+const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const isZh = uiLang === "zh";
 const orderNo = Astro.params.orderNo ?? "";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
 const payment = order ? await getPaymentByOrderId(order.id, runtimeEnv) : null;
+const makeLangHref = (lang: "en" | "zh") => {
+  const params = new URLSearchParams(Astro.url.searchParams);
+  if (lang === "zh") params.set("ui", "zh");
+  else params.delete("ui");
+  const query = params.toString();
+  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+};
 
 if (!order) {
   Astro.response.status = 404;
 }
 
 const format = (value: number) => formatPrice(value, "en");
+const copy = isZh
+  ? {
+      pageEyebrow: "订单详情",
+      pageMissing: "订单不存在",
+      pageCopy: "把关键状态、支付和出餐操作放在最前面，其他信息放在下面。",
+      back: "返回订单队列",
+      langEn: "EN",
+      langZh: "中文",
+      deliveryOrder: "外送订单",
+      pickupOrder: "自取订单",
+      itemCount: "件菜品",
+      total: "总额",
+      items: "菜品",
+      summary: "订单摘要",
+      customer: "客户",
+      phone: "电话",
+      address: "地址",
+      paymentIntent: "支付意图",
+      payment: "支付信息",
+      providerStatus: "支付状态",
+      sessionId: "会话 ID",
+      paidAt: "支付时间",
+      awaitingConfirmation: "等待确认",
+      guest: "游客结账",
+      collectedAtCheckout: "结账时填写",
+      pendingStripe: "等待 Stripe 确认",
+      pickup: "自取",
+      notCreated: "未创建",
+      timeline: "时间线",
+      updating: "更新中...",
+      updated: "订单已更新",
+      requestFailed: "请求失败",
+      actionAccept: "接单",
+      actionCooking: "开始出餐",
+      actionDelivery: "开始配送",
+      actionComplete: "完成",
+      actionCancel: "取消",
+    }
+  : {
+      pageEyebrow: "Merchant Order",
+      pageMissing: "Order not found",
+      pageCopy: "Critical status, payment, and fulfillment actions are surfaced first. Supporting details sit below.",
+      back: "Back to order queue",
+      langEn: "EN",
+      langZh: "中文",
+      deliveryOrder: "Delivery order",
+      pickupOrder: "Pickup order",
+      itemCount: "items",
+      total: "Total",
+      items: "Items",
+      summary: "Order summary",
+      customer: "Customer",
+      phone: "Phone",
+      address: "Address",
+      paymentIntent: "Payment intent",
+      payment: "Payment",
+      providerStatus: "Provider status",
+      sessionId: "Session id",
+      paidAt: "Paid at",
+      awaitingConfirmation: "Awaiting confirmation",
+      guest: "Guest checkout",
+      collectedAtCheckout: "Collected at checkout",
+      pendingStripe: "Pending Stripe confirmation",
+      pickup: "Pickup",
+      notCreated: "Not created",
+      timeline: "Timeline",
+      updating: "Updating order...",
+      updated: "Order updated.",
+      requestFailed: "Request failed.",
+      actionAccept: "Accept",
+      actionCooking: "Start cooking",
+      actionDelivery: "Out for delivery",
+      actionComplete: "Complete",
+      actionCancel: "Cancel",
+    };
 const actions = [
-  { label: "Accept", endpoint: "accept", method: "POST" },
-  { label: "Start cooking", endpoint: "status", method: "POST", payload: { status: "cooking", message: "Merchant started cooking." } },
-  { label: "Out for delivery", endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
-  { label: "Complete", endpoint: "status", method: "POST", payload: { status: "completed", message: "Order marked as completed." } },
-  { label: "Cancel", endpoint: "cancel", method: "POST" },
+  { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
+  { label: copy.actionCooking, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Merchant started cooking." } },
+  { label: copy.actionDelivery, endpoint: "status", method: "POST" as const, payload: { status: "delivering", message: "Order handed off for delivery." } },
+  { label: copy.actionComplete, endpoint: "status", method: "POST" as const, payload: { status: "completed", message: "Order marked as completed." } },
+  { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const },
 ];
 
 function statusLabel(value: string) {
-  return value.replaceAll("_", " ");
+  if (!isZh) return value.replaceAll("_", " ");
+  return ({
+    pending_payment: "待支付",
+    paid_waiting_accept: "待接单",
+    accepted: "已接单",
+    cooking: "制作中",
+    delivering: "配送中",
+    completed: "已完成",
+    cancelled: "已取消",
+    refunded: "已退款",
+    paid: "已支付",
+    unpaid: "未支付",
+    failed: "失败",
+  } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
 }
 
 function tone(value: string) {
@@ -34,17 +131,27 @@ function tone(value: string) {
   if (value === "cancelled" || value === "refunded") return "muted";
   return "neutral";
 }
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(isZh ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+}
 ---
 
-<BaseLayout lang="en">
-  <section class="container admin-shell" data-order-no={order?.orderNo ?? ""}>
+<BaseLayout lang={uiLang}>
+  <section class="container admin-shell" data-order-no={order?.orderNo ?? ""} data-ui-lang={uiLang}>
     <div class="page-head">
       <div class="page-copy">
-        <p class="eyebrow">Merchant Order</p>
-        <h1 class="section-title">{order ? order.orderNo : "Order not found"}</h1>
-        <p class="section-copy">Critical status, payment, and fulfillment actions are surfaced first. Supporting details sit below.</p>
+        <p class="eyebrow">{copy.pageEyebrow}</p>
+        <h1 class="section-title">{order ? order.orderNo : copy.pageMissing}</h1>
+        <p class="section-copy">{copy.pageCopy}</p>
       </div>
-      <a class="ghost-button back-button" href="/admin/orders">Back to order queue</a>
+      <div class="page-head-actions">
+        <div class="admin-lang-switch">
+          <a class:list={["lang-button", { active: uiLang === "en" }]} href={makeLangHref("en")}>{copy.langEn}</a>
+          <a class:list={["lang-button", { active: uiLang === "zh" }]} href={makeLangHref("zh")}>{copy.langZh}</a>
+        </div>
+        <a class="ghost-button back-button" href={`/admin/orders${uiLang === "zh" ? "?ui=zh" : ""}`}>{copy.back}</a>
+      </div>
     </div>
 
     {order ? (
@@ -57,17 +164,17 @@ function tone(value: string) {
                 {statusLabel(order.paymentStatus)}
               </span>
             </div>
-            <h2>{order.customerName || "Guest checkout"}</h2>
-            <p>{order.fulfillment === "delivery" ? "Delivery order" : "Pickup order"} · {order.items.length} items · {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p>
+            <h2>{order.customerName || copy.guest}</h2>
+            <p>{order.fulfillment === "delivery" ? copy.deliveryOrder : copy.pickupOrder} · {order.items.length} {copy.itemCount} · {formatDate(order.createdAt)}</p>
           </div>
           <div class="hero-meta">
-            <span class="metric-label">Total</span>
+            <span class="metric-label">{copy.total}</span>
             <strong>{format(order.totalAmount)}</strong>
           </div>
         </section>
 
         <section class="card admin-card wide-card items-priority-card">
-          <h2>Items</h2>
+          <h2>{copy.items}</h2>
           <div class="line-items">
             {order.items.map((item) => (
               <article class="line-item">
@@ -77,7 +184,7 @@ function tone(value: string) {
                     <strong>{item.productName}</strong>
                     <strong>{format(item.subtotal)}</strong>
                   </div>
-                  <p>{format(item.unitPrice)} each × {item.quantity}</p>
+                  <p>{isZh ? `${format(item.unitPrice)} /份 × ${item.quantity}` : `${format(item.unitPrice)} each × ${item.quantity}`}</p>
                   {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
                   {item.note ? <p>{item.note}</p> : null}
                 </div>
@@ -103,52 +210,52 @@ function tone(value: string) {
 
         <div class="detail-grid">
           <section class="card admin-card">
-            <h2>Order summary</h2>
+            <h2>{copy.summary}</h2>
             <div class="summary-grid">
               <div>
-                <span class="summary-label">Customer</span>
-                <strong>{order.customerName || "Collected at checkout"}</strong>
+                <span class="summary-label">{copy.customer}</span>
+                <strong>{order.customerName || copy.collectedAtCheckout}</strong>
               </div>
               <div>
-                <span class="summary-label">Phone</span>
-                <strong>{order.phone || "Pending Stripe confirmation"}</strong>
+                <span class="summary-label">{copy.phone}</span>
+                <strong>{order.phone || copy.pendingStripe}</strong>
               </div>
               <div>
-                <span class="summary-label">Address</span>
-                <strong>{order.address || (order.fulfillment === "pickup" ? "Pickup" : "Pending Stripe confirmation")}</strong>
+                <span class="summary-label">{copy.address}</span>
+                <strong>{order.address || (order.fulfillment === "pickup" ? copy.pickup : copy.pendingStripe)}</strong>
               </div>
               <div>
-                <span class="summary-label">Payment intent</span>
-                <strong>{order.stripePaymentIntentId || "Pending"}</strong>
+                <span class="summary-label">{copy.paymentIntent}</span>
+                <strong>{order.stripePaymentIntentId || copy.awaitingConfirmation}</strong>
               </div>
             </div>
           </section>
 
           <section class="card admin-card">
-            <h2>Payment</h2>
+            <h2>{copy.payment}</h2>
             <div class="mini-stack">
               <div class="mini-row">
-                <span class="summary-label">Provider status</span>
-                <strong>{payment?.status ?? "unpaid"}</strong>
+                <span class="summary-label">{copy.providerStatus}</span>
+                <strong>{statusLabel(payment?.status ?? "unpaid")}</strong>
               </div>
               <div class="mini-row">
-                <span class="summary-label">Session id</span>
-                <strong>{order.stripeCheckoutSessionId || "Not created"}</strong>
+                <span class="summary-label">{copy.sessionId}</span>
+                <strong>{order.stripeCheckoutSessionId || copy.notCreated}</strong>
               </div>
               <div class="mini-row">
-                <span class="summary-label">Paid at</span>
-                <strong>{order.paidAt || "Awaiting confirmation"}</strong>
+                <span class="summary-label">{copy.paidAt}</span>
+                <strong>{order.paidAt || copy.awaitingConfirmation}</strong>
               </div>
             </div>
           </section>
 
           <section class="card admin-card wide-card">
-            <h2>Timeline</h2>
+            <h2>{copy.timeline}</h2>
             <div class="timeline">
               {order.timeline.map((event) => (
                 <article class="timeline-item">
                   <strong>{event.message}</strong>
-                  <span>{new Date(event.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span>
+                  <span>{formatDate(event.createdAt)}</span>
                 </article>
               ))}
             </div>
@@ -159,10 +266,23 @@ function tone(value: string) {
   </section>
 </BaseLayout>
 
+<script
+  is:inline
+  type="application/json"
+  id="admin-order-detail-copy"
+  set:html={JSON.stringify({
+    updating: copy.updating,
+    updated: copy.updated,
+    requestFailed: copy.requestFailed,
+  })}
+/>
+
 <script is:inline>
   const buttons = document.querySelectorAll(".admin-action");
   const notice = document.getElementById("admin-notice");
   const orderNo = document.querySelector("[data-order-no]")?.getAttribute("data-order-no") || "";
+  const copyNode = document.getElementById("admin-order-detail-copy");
+  const copy = JSON.parse(copyNode?.textContent || "{}");
 
   for (const button of buttons) {
     button.addEventListener("click", async () => {
@@ -173,7 +293,7 @@ function tone(value: string) {
       const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
 
       if (notice) {
-        notice.textContent = "Updating order...";
+        notice.textContent = copy.updating;
       }
 
       const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
@@ -187,13 +307,13 @@ function tone(value: string) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (notice) {
-          notice.textContent = data.error || "Request failed.";
+          notice.textContent = data.error || copy.requestFailed;
         }
         return;
       }
 
       if (notice) {
-        notice.textContent = "Order updated.";
+        notice.textContent = copy.updated;
       }
       window.location.reload();
     });
@@ -216,6 +336,9 @@ function tone(value: string) {
   :global(.site-header .brand-mark) {
     color: #174ea6;
   }
+  :global(.site-header .locale-menu) {
+    display: none;
+  }
   :global(.site-header .locale-trigger),
   :global(.site-header .locale-option),
   :global(.site-header .header-order) {
@@ -235,6 +358,36 @@ function tone(value: string) {
     gap: 20px;
     align-items: end;
     margin-bottom: 24px;
+  }
+  .page-head-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .admin-lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: #ffffff;
+  }
+  .lang-button {
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: rgba(18,49,75,.68);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .lang-button.active {
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
   }
   .page-copy {
     max-width: 48rem;
@@ -443,9 +596,6 @@ function tone(value: string) {
     .hero-panel,
     .detail-grid {
       display: grid;
-    }
-    .sticky-card {
-      position: static;
     }
   }
   @media (max-width: 720px) {

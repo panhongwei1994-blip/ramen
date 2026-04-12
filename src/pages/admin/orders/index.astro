@@ -5,10 +5,90 @@ import { getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } 
 
 export const prerender = false;
 
+const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const isZh = uiLang === "zh";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
+const makeLangHref = (lang: "en" | "zh") => {
+  const params = new URLSearchParams(Astro.url.searchParams);
+  if (lang === "zh") params.set("ui", "zh");
+  else params.delete("ui");
+  const query = params.toString();
+  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+};
+const copy = isZh
+  ? {
+      pageEyebrow: "后台订单",
+      pageTitle: "订单",
+      pageCopy: "给员工看的亮色队列界面，处理中和已完成订单分开展示。",
+      langEn: "EN",
+      langZh: "中文",
+      alertButton: "开启通知",
+      alertOff: "通知关闭",
+      alertOn: "通知已开启",
+      alertFailed: "通知轮询失败",
+      alertNew: "新订单",
+      storageWarning: "当前部署没有持久化订单存储。请绑定 D1 的 DB，或保留旧的 ORDERS KV，否则结账后后台队列可能为空。",
+      liveQueue: "实时队列",
+      processing: "处理中",
+      orders: "单",
+      noProcessing: "当前没有处理中订单。",
+      history: "历史订单",
+      completed: "已完成",
+      noCompleted: "还没有已完成订单。",
+      closed: "关闭订单",
+      cancelledRefunded: "取消 / 退款",
+      guest: "游客结账",
+      delivery: "外送",
+      pickup: "自取",
+      moreItems: "更多菜品",
+      viewDetails: "查看详情",
+      updateError: "更新订单失败。",
+      updating: "更新中...",
+      notifyTitle: "新订单来了",
+      actionAccept: "接单",
+      actionCancel: "取消",
+      actionCooking: "开始出餐",
+      actionDelivery: "开始配送",
+      actionComplete: "完成",
+    }
+  : {
+      pageEyebrow: "Merchant Orders",
+      pageTitle: "Orders",
+      pageCopy: "Bright, simple queue view for staff. Processing orders are separated from completed history.",
+      langEn: "EN",
+      langZh: "中文",
+      alertButton: "Enable order alerts",
+      alertOff: "Alerts off",
+      alertOn: "Alerts on",
+      alertFailed: "Alert polling failed",
+      alertNew: "New order",
+      storageWarning: "This deployment is running without persistent order storage. Bind a D1 database as DB or keep the legacy ORDERS KV binding enabled, otherwise the admin queue can look empty after checkout.",
+      liveQueue: "Live queue",
+      processing: "Processing",
+      orders: "orders",
+      noProcessing: "No processing orders.",
+      history: "History",
+      completed: "Completed",
+      noCompleted: "No completed orders yet.",
+      closed: "Closed",
+      cancelledRefunded: "Cancelled / Refunded",
+      guest: "Guest checkout",
+      delivery: "delivery",
+      pickup: "pickup",
+      moreItems: "more items",
+      viewDetails: "View details",
+      updateError: "Unable to update order.",
+      updating: "Updating...",
+      notifyTitle: "New order received",
+      actionAccept: "Accept",
+      actionCancel: "Cancel",
+      actionCooking: "Start cooking",
+      actionDelivery: "Out for delivery",
+      actionComplete: "Complete",
+    };
 
 const processingStatuses = new Set(["pending_payment", "paid_waiting_accept", "accepted", "cooking", "delivering"]);
 const completedStatuses = new Set(["completed"]);
@@ -30,7 +110,38 @@ type QueueAction = {
 };
 
 function statusLabel(value: string) {
-  return value.replaceAll("_", " ");
+  if (!isZh) return value.replaceAll("_", " ");
+  return ({
+    pending_payment: "待支付",
+    paid_waiting_accept: "待接单",
+    accepted: "已接单",
+    cooking: "制作中",
+    delivering: "配送中",
+    completed: "已完成",
+    cancelled: "已取消",
+    refunded: "已退款",
+    paid: "已支付",
+    unpaid: "未支付",
+    failed: "失败",
+    refunded_payment: "已退款",
+  } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+}
+
+function itemCountLabel(count: number) {
+  return isZh ? `${count} 件菜品` : `${count} items`;
+}
+
+function fulfillmentLabel(value: OrderRecord["fulfillment"]) {
+  if (value === "delivery") return copy.delivery;
+  return copy.pickup;
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(isZh ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatPreviewQuantity(quantity: number, subtotal: number) {
+  return isZh ? `${quantity} 份 · ${format(subtotal)}` : `${quantity} × ${format(subtotal)}`;
 }
 
 function orderTone(order: OrderRecord) {
@@ -45,21 +156,21 @@ function queueActions(order: OrderRecord): QueueAction[] {
   switch (order.orderStatus) {
     case "paid_waiting_accept":
       return [
-        { label: "Accept", endpoint: "accept", method: "POST" },
-        { label: "Cancel", endpoint: "cancel", method: "POST", tone: "danger" },
+        { label: copy.actionAccept, endpoint: "accept", method: "POST" },
+        { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
       ];
     case "accepted":
       return [
-        { label: "Start cooking", endpoint: "status", method: "POST", payload: { status: "cooking", message: "Merchant started cooking." } },
-        { label: "Cancel", endpoint: "cancel", method: "POST", tone: "danger" },
+        { label: copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Merchant started cooking." } },
+        { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
       ];
     case "cooking":
       return [
-        { label: "Out for delivery", endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
+        { label: copy.actionDelivery, endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
       ];
     case "delivering":
       return [
-        { label: "Complete", endpoint: "status", method: "POST", payload: { status: "completed", message: "Order marked as completed." } },
+        { label: copy.actionComplete, endpoint: "status", method: "POST", payload: { status: "completed", message: "Order marked as completed." } },
       ];
     default:
       return [];
@@ -67,33 +178,37 @@ function queueActions(order: OrderRecord): QueueAction[] {
 }
 ---
 
-<BaseLayout lang="en">
-  <section class="container admin-shell">
+<BaseLayout lang={uiLang}>
+  <section class="container admin-shell" data-ui-lang={uiLang}>
     <div class="page-copy">
       <div>
-        <p class="eyebrow admin-eyebrow">Merchant Orders</p>
-        <h1 class="section-title">Orders</h1>
-        <p class="section-copy">Bright, simple queue view for staff. Processing orders are separated from completed history.</p>
+        <p class="eyebrow admin-eyebrow">{copy.pageEyebrow}</p>
+        <h1 class="section-title">{copy.pageTitle}</h1>
+        <p class="section-copy">{copy.pageCopy}</p>
       </div>
       <div class="alert-actions">
-        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
-        <span class="alert-status" id="order-alert-status">Alerts off</span>
+        <div class="admin-lang-switch">
+          <a class:list={["lang-button", { active: uiLang === "en" }]} href={makeLangHref("en")}>{copy.langEn}</a>
+          <a class:list={["lang-button", { active: uiLang === "zh" }]} href={makeLangHref("zh")}>{copy.langZh}</a>
+        </div>
+        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
+        <span class="alert-status" id="order-alert-status">{copy.alertOff}</span>
       </div>
     </div>
 
     {!hasPersistentStore ? (
       <div class="storage-warning card">
-        This deployment is running without persistent order storage. Bind a D1 database as <strong>DB</strong> or keep the legacy <strong>ORDERS</strong> KV binding enabled, otherwise the admin queue can look empty after checkout.
+        {copy.storageWarning}
       </div>
     ) : null}
 
     <section class="orders-section">
       <div class="orders-head">
         <div>
-          <p class="eyebrow orders-eyebrow">Live queue</p>
-          <h2>Processing</h2>
+          <p class="eyebrow orders-eyebrow">{copy.liveQueue}</p>
+          <h2>{copy.processing}</h2>
         </div>
-        <p class="orders-meta">{processingOrders.length} orders</p>
+        <p class="orders-meta">{processingOrders.length} {copy.orders}</p>
       </div>
 
       {processingOrders.length ? (
@@ -107,12 +222,13 @@ function queueActions(order: OrderRecord): QueueAction[] {
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <h3>{order.customerName || copy.guest}</h3>
                   <p class="order-subcopy">
-                    {order.items.length} items
-                    {order.fulfillment === "delivery" ? " · delivery" : " · pickup"}
+                    {itemCountLabel(order.items.length)}
                     {" · "}
-                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                    {fulfillmentLabel(order.fulfillment)}
+                    {" · "}
+                    {formatDate(order.createdAt)}
                   </p>
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
@@ -123,11 +239,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
                     <img src={item.imageUrl} alt={item.productName} />
                     <div class="preview-copy">
                       <strong>{item.productName}</strong>
-                      <span>{item.quantity} × {format(item.subtotal)}</span>
+                      <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
                     </div>
                   </div>
                 ))}
-                {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} more items</p> : null}
+                {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} {copy.moreItems}</p> : null}
               </div>
               <div class="order-rail">
                 <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
@@ -136,7 +252,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
                 </span>
               </div>
               <div class="order-actions">
-                <a class="detail-link" href={`/admin/orders/${order.orderNo}`}>View details</a>
+                <a class="detail-link" href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`}>{copy.viewDetails}</a>
                 {queueActions(order).map((action) => (
                   <button
                     class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
@@ -155,31 +271,31 @@ function queueActions(order: OrderRecord): QueueAction[] {
           ))}
         </div>
       ) : (
-        <div class="card table-empty">No processing orders.</div>
+        <div class="card table-empty">{copy.noProcessing}</div>
       )}
     </section>
 
     <section class="orders-section secondary-section">
       <div class="orders-head">
         <div>
-          <p class="eyebrow orders-eyebrow">History</p>
-          <h2>Completed</h2>
+          <p class="eyebrow orders-eyebrow">{copy.history}</p>
+          <h2>{copy.completed}</h2>
         </div>
-        <p class="orders-meta">{completedOrders.length} orders</p>
+        <p class="orders-meta">{completedOrders.length} {copy.orders}</p>
       </div>
 
       {completedOrders.length ? (
         <div class="order-list">
           {completedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <h3>{order.customerName || copy.guest}</h3>
                   <p class="order-subcopy">
-                    {order.items.length} items
+                    {itemCountLabel(order.items.length)}
                     {" · "}
-                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                    {formatDate(order.createdAt)}
                   </p>
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
@@ -194,7 +310,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
           ))}
         </div>
       ) : (
-        <div class="card table-empty">No completed orders yet.</div>
+        <div class="card table-empty">{copy.noCompleted}</div>
       )}
     </section>
 
@@ -202,22 +318,22 @@ function queueActions(order: OrderRecord): QueueAction[] {
       <section class="orders-section secondary-section">
         <div class="orders-head">
           <div>
-            <p class="eyebrow orders-eyebrow">Closed</p>
-            <h2>Cancelled / Refunded</h2>
+            <p class="eyebrow orders-eyebrow">{copy.closed}</p>
+            <h2>{copy.cancelledRefunded}</h2>
           </div>
-          <p class="orders-meta">{closedOrders.length} orders</p>
+          <p class="orders-meta">{closedOrders.length} {copy.orders}</p>
         </div>
         <div class="order-list">
           {closedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <h3>{order.customerName || copy.guest}</h3>
                   <p class="order-subcopy">
-                    {order.items.length} items
+                    {itemCountLabel(order.items.length)}
                     {" · "}
-                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                    {formatDate(order.createdAt)}
                   </p>
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
@@ -236,9 +352,24 @@ function queueActions(order: OrderRecord): QueueAction[] {
   </section>
 </BaseLayout>
 
+<script
+  is:inline
+  type="application/json"
+  id="admin-orders-copy"
+  set:html={JSON.stringify({
+    alertOn: copy.alertOn,
+    alertFailed: copy.alertFailed,
+    alertNew: copy.alertNew,
+    updateError: copy.updateError,
+    updating: copy.updating,
+    notifyTitle: copy.notifyTitle,
+  })}
+/>
+
 <script is:inline>
   const alertButton = document.getElementById("enable-order-alerts");
   const alertStatus = document.getElementById("order-alert-status");
+  const copyNode = document.getElementById("admin-orders-copy");
   const rowNodes = document.querySelectorAll("[data-order-id]");
   const storageKey = "sumi-ramen-order-alerts-enabled";
   const seenOrdersKey = "sumi-ramen-seen-orders";
@@ -269,6 +400,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
   };
 
   persistSeenOrders();
+
+  const copy = JSON.parse(copyNode?.textContent || "{}");
 
   const setStatus = (message) => {
     if (alertStatus) {
@@ -307,7 +440,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
   const notifyNewOrder = (order) => {
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("New order received", {
+      new Notification(copy.notifyTitle, {
         body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
       });
     }
@@ -327,14 +460,14 @@ function queueActions(order: OrderRecord): QueueAction[] {
         newOrders.forEach((order) => seenOrders.add(order.id));
         persistSeenOrders();
         notifyNewOrder(newOrders[0]);
-        setStatus(`New order: ${newOrders[0].orderNo}`);
+        setStatus(`${copy.alertNew}: ${newOrders[0].orderNo}`);
         window.setTimeout(() => window.location.reload(), 1200);
         return;
       }
 
-      setStatus("Alerts on");
+      setStatus(copy.alertOn);
     } catch {
-      setStatus("Alert polling failed");
+      setStatus(copy.alertFailed);
     }
   };
 
@@ -355,7 +488,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       setAlertsEnabled(true);
       alertButton.disabled = true;
-      setStatus("Alerts on");
+      setStatus(copy.alertOn);
       window.setInterval(() => {
         void pollOrders();
       }, 12000);
@@ -367,7 +500,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
     if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
       setAlertsEnabled(true);
       alertButton.disabled = true;
-      setStatus("Alerts on");
+      setStatus(copy.alertOn);
       window.setInterval(() => {
         void pollOrders();
       }, 12000);
@@ -394,7 +527,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       node.disabled = true;
       const previousLabel = node.textContent;
-      node.textContent = "Updating...";
+      node.textContent = copy.updating;
 
       try {
         const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
@@ -407,7 +540,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          window.alert(data?.error || "Unable to update order.");
+          window.alert(data?.error || copy.updateError);
           node.disabled = false;
           node.textContent = previousLabel;
           return;
@@ -415,7 +548,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
         window.location.reload();
       } catch {
-        window.alert("Unable to update order.");
+        window.alert(copy.updateError);
         node.disabled = false;
         node.textContent = previousLabel;
       }
@@ -438,6 +571,14 @@ function queueActions(order: OrderRecord): QueueAction[] {
   }
   :global(.site-header .brand-mark) {
     color: #174ea6;
+  }
+  :global(.site-header .locale-menu) {
+    display: none;
+  }
+  :global(.site-header .locale-popover) {
+    background: #ffffff;
+    border-color: rgba(45,108,223,.12);
+    box-shadow: 0 18px 48px rgba(16,78,157,.08);
   }
   :global(.site-header .locale-trigger),
   :global(.site-header .locale-option),
@@ -474,6 +615,30 @@ function queueActions(order: OrderRecord): QueueAction[] {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+  }
+  .admin-lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: #ffffff;
+  }
+  .lang-button {
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: rgba(18,49,75,.68);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .lang-button.active {
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
   }
   .alert-toggle {
     min-height: 46px;
