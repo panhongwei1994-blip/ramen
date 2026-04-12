@@ -40,8 +40,7 @@ function orderTone(order: OrderRecord) {
         <p class="section-copy">Bright, simple queue view for staff. Processing orders are separated from completed history.</p>
       </div>
       <div class="alert-actions">
-        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
-        <span class="alert-status" id="order-alert-status">Alerts off</span>
+        <span class="alert-status live" id="order-alert-status">Alerts on</span>
       </div>
     </div>
 
@@ -173,12 +172,11 @@ function orderTone(order: OrderRecord) {
 </BaseLayout>
 
 <script is:inline>
-  const alertButton = document.getElementById("enable-order-alerts");
   const alertStatus = document.getElementById("order-alert-status");
   const rowNodes = document.querySelectorAll("[data-order-id]");
   const seenOrders = new Set(Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean));
   let audioContext;
-  let alertsEnabled = false;
+  let alertsEnabled = true;
 
   const setStatus = (message) => {
     if (alertStatus) {
@@ -238,29 +236,34 @@ function orderTone(order: OrderRecord) {
     }
   };
 
-  if (alertButton instanceof HTMLButtonElement) {
-    alertButton.addEventListener("click", async () => {
+  const bootAlerts = async () => {
+    try {
+      audioContext = audioContext || new window.AudioContext();
+    } catch {
+      // Ignore audio init failures.
+    }
+
+    if ("Notification" in window && Notification.permission === "default") {
       try {
-        audioContext = audioContext || new window.AudioContext();
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
-        }
+        await Notification.requestPermission();
       } catch {
-        // Ignore audio init failures.
+        // Ignore notification permission failures.
       }
+    }
 
-      if ("Notification" in window && Notification.permission === "default") {
-        await Notification.requestPermission().catch(() => "default");
-      }
-
-      alertsEnabled = true;
-      alertButton.disabled = true;
-      setStatus("Alerts on");
-      window.setInterval(() => {
-        void pollOrders();
-      }, 12000);
+    setStatus("Alerts on");
+    window.setInterval(() => {
       void pollOrders();
-    });
+    }, 12000);
+    void pollOrders();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      void bootAlerts();
+    }, { once: true });
+  } else {
+    void bootAlerts();
   }
 </script>
 
@@ -316,12 +319,6 @@ function orderTone(order: OrderRecord) {
     align-items: center;
     flex-wrap: wrap;
   }
-  .alert-toggle {
-    min-height: 46px;
-    border-color: rgba(45,108,223,.16);
-    background: #ffffff;
-    color: #174ea6;
-  }
   .alert-status,
   .order-no,
   .orders-meta {
@@ -334,6 +331,13 @@ function orderTone(order: OrderRecord) {
   .alert-status,
   .orders-meta {
     color: rgba(18,49,75,.56);
+  }
+  .alert-status.live {
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
   }
   .storage-warning {
     margin-bottom: 22px;

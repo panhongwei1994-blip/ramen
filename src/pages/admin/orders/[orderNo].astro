@@ -21,7 +21,6 @@ const actions = [
   { label: "Out for delivery", endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
   { label: "Complete", endpoint: "status", method: "POST", payload: { status: "completed", message: "Order marked as completed." } },
   { label: "Cancel", endpoint: "cancel", method: "POST" },
-  { label: "Refund", endpoint: "status", method: "POST", payload: { status: "refunded", message: "Merchant marked order as refunded." } },
 ];
 
 function statusLabel(value: string) {
@@ -70,7 +69,7 @@ function tone(value: string) {
         <section class="action-panel">
           {actions.map((action) => (
             <button
-              class:list={["ghost-button admin-action", { emphasis: action.label === "Accept" || action.label === "Start cooking" }]}
+              class:list={["ghost-button admin-action", "emphasis"]}
               type="button"
               data-endpoint={action.endpoint}
               data-method={action.method}
@@ -80,6 +79,26 @@ function tone(value: string) {
             </button>
           ))}
           <div class="notice" id="admin-notice"></div>
+        </section>
+
+        <section class="card admin-card wide-card">
+          <h2>Items</h2>
+          <div class="line-items">
+            {order.items.map((item) => (
+              <article class="line-item">
+                <img src={item.imageUrl} alt={item.productName} />
+                <div>
+                  <div class="line-head">
+                    <strong>{item.productName}</strong>
+                    <strong>{format(item.subtotal)}</strong>
+                  </div>
+                  <p>{format(item.unitPrice)} each × {item.quantity}</p>
+                  {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
+                  {item.note ? <p>{item.note}</p> : null}
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
 
         <div class="detail-grid">
@@ -105,7 +124,7 @@ function tone(value: string) {
             </div>
           </section>
 
-          <section class="card admin-card sticky-card">
+          <section class="card admin-card">
             <h2>Payment</h2>
             <div class="mini-stack">
               <div class="mini-row">
@@ -120,26 +139,6 @@ function tone(value: string) {
                 <span class="summary-label">Paid at</span>
                 <strong>{order.paidAt || "Awaiting confirmation"}</strong>
               </div>
-            </div>
-          </section>
-
-          <section class="card admin-card wide-card">
-            <h2>Items</h2>
-            <div class="line-items">
-              {order.items.map((item) => (
-                <article class="line-item">
-                  <img src={item.imageUrl} alt={item.productName} />
-                  <div>
-                    <div class="line-head">
-                      <strong>{item.productName}</strong>
-                      <strong>{format(item.subtotal)}</strong>
-                    </div>
-                    <p>{format(item.unitPrice)} each × {item.quantity}</p>
-                    {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
-                    {item.note ? <p>{item.note}</p> : null}
-                  </div>
-                </article>
-              ))}
             </div>
           </section>
 
@@ -349,10 +348,6 @@ function tone(value: string) {
   }
   .wide-card {
     grid-column: 1 / -1;
-  }
-  .sticky-card {
-    position: sticky;
-    top: 110px;
   }
   .summary-grid {
     display: grid;
