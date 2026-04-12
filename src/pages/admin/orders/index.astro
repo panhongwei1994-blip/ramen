@@ -40,7 +40,8 @@ function orderTone(order: OrderRecord) {
         <p class="section-copy">Bright, simple queue view for staff. Processing orders are separated from completed history.</p>
       </div>
       <div class="alert-actions">
-        <span class="alert-status live" id="order-alert-status">Alerts on</span>
+        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
+        <span class="alert-status" id="order-alert-status">Alerts off</span>
       </div>
     </div>
 
@@ -172,15 +173,37 @@ function orderTone(order: OrderRecord) {
 </BaseLayout>
 
 <script is:inline>
+  const alertButton = document.getElementById("enable-order-alerts");
   const alertStatus = document.getElementById("order-alert-status");
   const rowNodes = document.querySelectorAll("[data-order-id]");
   const seenOrders = new Set(Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean));
-  let alertsEnabled = true;
+  let audioContext;
+  let alertsEnabled = false;
 
   const setStatus = (message) => {
     if (alertStatus) {
       alertStatus.textContent = message;
     }
+  };
+
+  const playOrderTone = () => {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const notes = [740, 988, 740];
+
+    notes.forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.001, now + index * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now + index * 0.18);
+      oscillator.stop(now + index * 0.18 + 0.18);
+    });
   };
 
   const notifyNewOrder = (order) => {
@@ -189,6 +212,7 @@ function orderTone(order: OrderRecord) {
         body: `${order.orderNo} · ${order.orderStatus.replaceAll("_", " ")}`,
       });
     }
+    playOrderTone();
   };
 
   const pollOrders = async () => {
@@ -214,20 +238,29 @@ function orderTone(order: OrderRecord) {
     }
   };
 
-  const bootAlerts = async () => {
-    setStatus("Alerts on");
-    window.setInterval(() => {
-      void pollOrders();
-    }, 12000);
-    void pollOrders();
-  };
+  if (alertButton instanceof HTMLButtonElement) {
+    alertButton.addEventListener("click", async () => {
+      try {
+        audioContext = audioContext || new window.AudioContext();
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+      } catch {
+        // Ignore audio init failures.
+      }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      void bootAlerts();
-    }, { once: true });
-  } else {
-    void bootAlerts();
+      if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission().catch(() => "default");
+      }
+
+      alertsEnabled = true;
+      alertButton.disabled = true;
+      setStatus("Alerts on");
+      window.setInterval(() => {
+        void pollOrders();
+      }, 12000);
+      void pollOrders();
+    });
   }
 </script>
 
@@ -283,6 +316,12 @@ function orderTone(order: OrderRecord) {
     align-items: center;
     flex-wrap: wrap;
   }
+  .alert-toggle {
+    min-height: 46px;
+    border-color: rgba(45,108,223,.16);
+    background: #ffffff;
+    color: #174ea6;
+  }
   .alert-status,
   .order-no,
   .orders-meta {
@@ -295,13 +334,6 @@ function orderTone(order: OrderRecord) {
   .alert-status,
   .orders-meta {
     color: rgba(18,49,75,.56);
-  }
-  .alert-status.live {
-    padding: 10px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(45,108,223,.14);
-    background: rgba(45,108,223,.08);
-    color: #174ea6;
   }
   .storage-warning {
     margin-bottom: 22px;
