@@ -175,11 +175,7 @@
                 </div>
               </div>
 
-              <p class="helper-note">
-                Stripe will collect your name, phone,
-                {{ checkout.fulfillment === "delivery" ? " and delivery address" : " and pickup details" }}
-                on the secure checkout page. The order is persisted before payment and totals are recalculated on the server.
-              </p>
+
 
               <div class="checkout-actions">
                 <button class="primary-button checkout-submit" type="button" :disabled="!canPlaceOrder || isSubmitting" @click="placeOrder">

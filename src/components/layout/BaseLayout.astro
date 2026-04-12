@@ -43,7 +43,7 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     <header class="site-header">
       <div class="header-shell card">
         <a href={lang === "en" ? "/" : `/${lang}`} class="brand-mark">
-          <img src="/sushi/logo.webp" alt={`${content.brand} Logo`} class="brand-logo" />
+          <img src="/ramen/logo.png" alt={`${content.brand} Logo`} class="brand-logo" />
           <span>{content.brand}</span>
         </a>
         <div class="header-actions">
@@ -74,7 +74,7 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
       <div class="install-backdrop" data-install-close></div>
       <div class="install-dialog card" role="dialog" aria-modal="true" aria-labelledby="install-title">
         <button class="install-close" type="button" data-install-close aria-label="Close">×</button>
-        <img src="/sushi/logo.webp" alt={content.brand} class="install-logo" />
+        <img src="/ramen/logo.png" alt={content.brand} class="install-logo" />
         <p class="eyebrow">{content.brand}</p>
         <h3 id="install-title">Add to your home screen</h3>
         <p class="install-copy" id="install-copy"></p>

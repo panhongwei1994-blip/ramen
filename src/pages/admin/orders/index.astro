@@ -375,7 +375,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const rowNodes = document.querySelectorAll("[data-order-id]");
       const storageKey = "sumi-ramen-order-alerts-enabled";
       const seenOrdersKey = "sumi-ramen-seen-orders";
-      const alertRefreshDelayMs = 10500;
+      const alertRefreshDelayMs = 1500;
       const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
       const seenOrders = new Set(initialOrderIds);
       let audioContext;
@@ -437,6 +437,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
       };
 
       const playOrderTone = () => {
+        try {
+          audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        } catch {
+          return;
+        }
         if (!audioContext) return;
         const now = audioContext.currentTime;
         const notes = [659, 784, 988, 784];
