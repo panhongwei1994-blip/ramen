@@ -53,6 +53,7 @@ const copy = isZh
       actionCooking: "开始出餐",
       actionDelivery: "开始配送",
       actionComplete: "完成",
+      viewAll: "查看历史订单",
     }
   : {
       pageEyebrow: "Merchant Orders",
@@ -88,6 +89,7 @@ const copy = isZh
       actionCooking: "Start cooking",
       actionDelivery: "Out for delivery",
       actionComplete: "Complete",
+      viewAll: "View historical orders",
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
@@ -290,8 +292,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       {completedOrders.length ? (
         <div class="order-list">
-          {completedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+          {completedOrders.map((order, idx) => (
+            <a class:list={["card order-card", orderTone(order), { "hidden-order": idx >= 5 }]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -316,6 +318,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
       ) : (
         <div class="card table-empty">{copy.noCompleted}</div>
       )}
+      {completedOrders.length > 5 ? (
+        <button class="ghost-button view-all-button" type="button" aria-label="View all" onclick="this.closest('.orders-section').classList.add('show-all')">
+          {copy.viewAll}
+        </button>
+      ) : null}
     </section>
 
     {closedOrders.length ? (
@@ -328,8 +335,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
           <p class="orders-meta">{closedOrders.length} {copy.orders}</p>
         </div>
         <div class="order-list">
-          {closedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+          {closedOrders.map((order, idx) => (
+            <a class:list={["card order-card", orderTone(order), { "hidden-order": idx >= 5 }]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -351,6 +358,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
             </a>
           ))}
         </div>
+        {closedOrders.length > 5 ? (
+          <button class="ghost-button view-all-button" type="button" aria-label="View all" onclick="this.closest('.orders-section').classList.add('show-all')">
+            {copy.viewAll}
+          </button>
+        ) : null}
       </section>
     ) : null}
 
@@ -738,6 +750,21 @@ function queueActions(order: OrderRecord): QueueAction[] {
     border: 1px solid rgba(45,108,223,.12);
     box-shadow: 0 18px 48px rgba(15,76,153,.08);
     transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .orders-section:not(.show-all) .hidden-order {
+    display: none;
+  }
+  .orders-section.show-all .view-all-button {
+    display: none;
+  }
+  .view-all-button {
+    width: 100%;
+    margin-top: 14px;
+    border-color: rgba(45,108,223,.16);
+    color: #174ea6;
+  }
+  .view-all-button:hover {
+    background: rgba(45,108,223,.03);
   }
   .order-card:hover {
     transform: translateY(-2px);

@@ -22,7 +22,6 @@ html {
 
 body {
   margin: 0;
-  overscroll-behavior-y: none;
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
   background:
     radial-gradient(circle at top right, rgba(195, 75, 45, 0.2), transparent 24%),
