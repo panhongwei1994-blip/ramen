@@ -9,6 +9,8 @@ const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
 const isZh = uiLang === "zh";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
+const viewAll = Astro.url.searchParams.get("view") === "all";
+
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
 const makeLangHref = (lang: "en" | "zh") => {
@@ -97,8 +99,14 @@ const completedStatuses = new Set(["completed"]);
 const closedStatuses = new Set(["cancelled", "refunded"]);
 
 const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus));
-const completedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus));
-const closedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus));
+const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus));
+const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus));
+
+const completedOrders = viewAll ? allCompletedOrders : allCompletedOrders.slice(0, 5);
+const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
+
+const hasMoreCompleted = allCompletedOrders.length > completedOrders.length;
+const hasMoreClosed = allClosedOrders.length > closedOrders.length;
 
 type QueueAction = {
   label: string;
@@ -293,7 +301,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       {completedOrders.length ? (
         <div class="order-list">
           {completedOrders.map((order, idx) => (
-            <a class:list={["card order-card", orderTone(order), { "hidden-order": idx >= 5 }]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -318,10 +326,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
       ) : (
         <div class="card table-empty">{copy.noCompleted}</div>
       )}
-      {completedOrders.length > 5 ? (
-        <button class="ghost-button view-all-button" type="button" aria-label="View all" onclick="this.closest('.orders-section').classList.add('show-all')">
-          {copy.viewAll}
-        </button>
+      {hasMoreCompleted ? (
+        <a class="ghost-button view-all-button" href="?view=all">
+          {copy.viewAll} ({allCompletedOrders.length})
+        </a>
       ) : null}
     </section>
 
@@ -336,7 +344,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         </div>
         <div class="order-list">
           {closedOrders.map((order, idx) => (
-            <a class:list={["card order-card", orderTone(order), { "hidden-order": idx >= 5 }]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -358,10 +366,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
             </a>
           ))}
         </div>
-        {closedOrders.length > 5 ? (
-          <button class="ghost-button view-all-button" type="button" aria-label="View all" onclick="this.closest('.orders-section').classList.add('show-all')">
-            {copy.viewAll}
-          </button>
+        {hasMoreClosed ? (
+          <a class="ghost-button view-all-button" href="?view=all">
+            {copy.viewAll} ({allClosedOrders.length})
+          </a>
         ) : null}
       </section>
     ) : null}
@@ -377,6 +385,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         updateError: copy.updateError,
         updating: copy.updating,
         notifyTitle: copy.notifyTitle,
+        allOrderIds: orders.map(o => o.id),
       })}
     />
 
@@ -384,11 +393,12 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const alertButton = document.getElementById("enable-order-alerts");
       const alertStatus = document.getElementById("order-alert-status");
       const copyNode = document.getElementById("admin-orders-copy");
-      const rowNodes = document.querySelectorAll("[data-order-id]");
       const storageKey = "sumi-ramen-order-alerts-enabled";
       const seenOrdersKey = "sumi-ramen-seen-orders";
       const alertRefreshDelayMs = 1500;
-      const initialOrderIds = Array.from(rowNodes).map((node) => node.getAttribute("data-order-id")).filter(Boolean);
+
+      const copy = JSON.parse(copyNode?.textContent || "{}");
+      const initialOrderIds = copy.allOrderIds || [];
       const seenOrders = new Set(initialOrderIds);
       let audioContext;
       let alertsEnabled = false;
@@ -416,8 +426,6 @@ function queueActions(order: OrderRecord): QueueAction[] {
       };
 
       persistSeenOrders();
-
-      const copy = JSON.parse(copyNode?.textContent || "{}");
 
       const setStatus = (message) => {
         if (alertStatus) {
@@ -750,12 +758,6 @@ function queueActions(order: OrderRecord): QueueAction[] {
     border: 1px solid rgba(45,108,223,.12);
     box-shadow: 0 18px 48px rgba(15,76,153,.08);
     transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-  }
-  .orders-section:not(.show-all) .hidden-order {
-    display: none;
-  }
-  .orders-section.show-all .view-all-button {
-    display: none;
   }
   .view-all-button {
     width: 100%;
