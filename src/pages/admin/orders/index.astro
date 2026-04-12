@@ -90,7 +90,7 @@ const copy = isZh
       actionComplete: "Complete",
     };
 
-const processingStatuses = new Set(["pending_payment", "paid_waiting_accept", "accepted", "cooking", "delivering"]);
+const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
 const completedStatuses = new Set(["completed"]);
 const closedStatuses = new Set(["cancelled", "refunded"]);
 
@@ -438,21 +438,27 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const playOrderTone = () => {
         if (!audioContext) return;
         const now = audioContext.currentTime;
-        const notes = [740, 988, 740];
+        const notes = [659, 784, 988, 784];
+        const loopCount = 10;
+        const loopDuration = 0.96;
 
-        notes.forEach((frequency, index) => {
-          const oscillator = audioContext.createOscillator();
-          const gain = audioContext.createGain();
-          oscillator.type = "sine";
-          oscillator.frequency.value = frequency;
-          gain.gain.setValueAtTime(0.001, now + index * 0.18);
-          gain.gain.exponentialRampToValueAtTime(0.08, now + index * 0.18 + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.18 + 0.16);
-          oscillator.connect(gain);
-          gain.connect(audioContext.destination);
-          oscillator.start(now + index * 0.18);
-          oscillator.stop(now + index * 0.18 + 0.18);
-        });
+        for (let loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
+          notes.forEach((frequency, noteIndex) => {
+            const startTime = now + loopIndex * loopDuration + noteIndex * 0.18;
+            const stopTime = startTime + 0.16;
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.type = "triangle";
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, stopTime);
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start(startTime);
+            oscillator.stop(stopTime);
+          });
+        }
       };
 
       const notifyNewOrder = (order) => {
@@ -471,7 +477,13 @@ function queueActions(order: OrderRecord): QueueAction[] {
           const response = await fetch("/api/admin/orders");
           const data = await response.json();
           const orders = Array.isArray(data?.orders) ? data.orders : [];
-          const newOrders = orders.filter((order) => order?.id && !seenOrders.has(order.id));
+          const alertableOrders = orders.filter(
+            (order) =>
+              order?.id &&
+              order.paymentStatus === "paid" &&
+              ["paid_waiting_accept", "accepted", "cooking", "delivering"].includes(order.orderStatus),
+          );
+          const newOrders = alertableOrders.filter((order) => !seenOrders.has(order.id));
 
           if (newOrders.length) {
             newOrders.forEach((order) => seenOrders.add(order.id));
