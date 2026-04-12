@@ -202,6 +202,30 @@ function tone(value: string) {
 </script>
 
 <style>
+  :global(body) {
+    background:
+      linear-gradient(180deg, #eef6ff 0%, #f8fbff 42%, #ffffff 100%);
+    color: #12314b;
+  }
+  :global(.site-header .header-shell) {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
+      rgba(255,255,255,.92);
+    border-color: rgba(45,108,223,.12);
+    box-shadow: 0 16px 40px rgba(16,78,157,.08);
+  }
+  :global(.site-header .brand-mark) {
+    color: #174ea6;
+  }
+  :global(.site-header .locale-trigger),
+  :global(.site-header .locale-option),
+  :global(.site-header .header-order) {
+    color: rgba(18,49,75,.72);
+  }
+  :global(.site-header .header-order) {
+    border-color: rgba(45,108,223,.14);
+    background: rgba(45,108,223,.06);
+  }
   .admin-shell {
     padding: 140px 0 88px;
     color: #12314b;

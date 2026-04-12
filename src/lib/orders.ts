@@ -694,7 +694,7 @@ export async function finishWebhookEvent(input: {
 
 function buildPaidOrder(order: OrderRecord, session: Stripe.Checkout.Session) {
   const paidAt = nowIso();
-  const nextStatus = order.orderStatus === "pending_payment" ? "paid_waiting_accept" : order.orderStatus;
+  const nextStatus = order.orderStatus === "pending_payment" ? "accepted" : order.orderStatus;
   const nextOrder = {
     ...order,
     customerName: normalizeOptionalString(session.customer_details?.name ?? undefined) || order.customerName,
@@ -709,10 +709,16 @@ function buildPaidOrder(order: OrderRecord, session: Stripe.Checkout.Session) {
 
   return updateOrderLifecycle(
     nextOrder,
-    createLifecycleEvent("payment.completed", "Stripe payment confirmed by webhook.", {
-      sessionId: session.id,
-      paymentIntentId: cleanPaymentIntentId(session.payment_intent),
-    }),
+    createLifecycleEvent(
+      "payment.completed",
+      order.orderStatus === "pending_payment"
+        ? "Stripe payment confirmed and order auto-accepted."
+        : "Stripe payment confirmed by webhook.",
+      {
+        sessionId: session.id,
+        paymentIntentId: cleanPaymentIntentId(session.payment_intent),
+      },
+    ),
   );
 }
 

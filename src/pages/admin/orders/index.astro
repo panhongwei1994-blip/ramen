@@ -10,25 +10,20 @@ const orders = await listOrders(runtimeEnv);
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
 
-const urgentStatuses = new Set(["paid_waiting_accept", "accepted", "cooking"]);
-const liveOrders = orders.filter((order) => urgentStatuses.has(order.orderStatus));
-const paidOrders = orders.filter((order) => order.paymentStatus === "paid");
-const revenue = paidOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-const displayOrders = [...orders].sort((left, right) => {
-  const leftUrgent = urgentStatuses.has(left.orderStatus) ? 1 : 0;
-  const rightUrgent = urgentStatuses.has(right.orderStatus) ? 1 : 0;
-  if (leftUrgent !== rightUrgent) {
-    return rightUrgent - leftUrgent;
-  }
-  return right.createdAt.localeCompare(left.createdAt);
-});
+const processingStatuses = new Set(["pending_payment", "paid_waiting_accept", "accepted", "cooking", "delivering"]);
+const completedStatuses = new Set(["completed"]);
+const closedStatuses = new Set(["cancelled", "refunded"]);
+
+const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus));
+const completedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus));
+const closedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus));
 
 function statusLabel(value: string) {
   return value.replaceAll("_", " ");
 }
 
 function orderTone(order: OrderRecord) {
-  if (order.orderStatus === "paid_waiting_accept") return "urgent";
+  if (order.orderStatus === "pending_payment" || order.orderStatus === "paid_waiting_accept") return "urgent";
   if (order.orderStatus === "accepted" || order.orderStatus === "cooking" || order.orderStatus === "delivering") return "active";
   if (order.orderStatus === "completed") return "done";
   if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
@@ -39,9 +34,11 @@ function orderTone(order: OrderRecord) {
 <BaseLayout lang="en">
   <section class="container admin-shell">
     <div class="page-copy">
-      <p class="eyebrow admin-eyebrow">Merchant Orders</p>
-      <h1 class="section-title">Operations board</h1>
-      <p class="section-copy">The queue is arranged for quick action: new paid orders first, live kitchen flow second, history after that.</p>
+      <div>
+        <p class="eyebrow admin-eyebrow">Merchant Orders</p>
+        <h1 class="section-title">Orders</h1>
+        <p class="section-copy">Bright, simple queue view for staff. Processing orders are separated from completed history.</p>
+      </div>
       <div class="alert-actions">
         <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">Enable order alerts</button>
         <span class="alert-status" id="order-alert-status">Alerts off</span>
@@ -54,37 +51,18 @@ function orderTone(order: OrderRecord) {
       </div>
     ) : null}
 
-    <section class="summary-strip">
-      <div class="summary-chip">
-        <span>Queue</span>
-        <strong>{orders.length}</strong>
-      </div>
-      <div class="summary-chip">
-        <span>In progress</span>
-        <strong>{liveOrders.length}</strong>
-      </div>
-      <div class="summary-chip">
-        <span>Paid</span>
-        <strong>{paidOrders.length}</strong>
-      </div>
-      <div class="summary-chip">
-        <span>Revenue</span>
-        <strong>{format(revenue)}</strong>
-      </div>
-    </section>
-
     <section class="orders-section">
       <div class="orders-head">
         <div>
-          <p class="eyebrow orders-eyebrow">Queue</p>
-          <h2>All orders</h2>
+          <p class="eyebrow orders-eyebrow">Live queue</p>
+          <h2>Processing</h2>
         </div>
-        <p class="orders-meta">{orders.length} total</p>
+        <p class="orders-meta">{processingOrders.length} orders</p>
       </div>
 
-      {displayOrders.length ? (
+      {processingOrders.length ? (
         <div class="order-list">
-          {displayOrders.map((order) => (
+          {processingOrders.map((order) => (
             <a
               class:list={["card order-card", orderTone(order)]}
               href={`/admin/orders/${order.orderNo}`}
@@ -103,7 +81,6 @@ function orderTone(order: OrderRecord) {
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
               </div>
-
               <div class="order-rail">
                 <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
                 <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
@@ -114,11 +91,84 @@ function orderTone(order: OrderRecord) {
           ))}
         </div>
       ) : (
-        <div class="card table-empty">
-          {hasPersistentStore ? "No orders yet." : "No orders visible because persistent storage is not bound on this deployment."}
-        </div>
+        <div class="card table-empty">No processing orders.</div>
       )}
     </section>
+
+    <section class="orders-section secondary-section">
+      <div class="orders-head">
+        <div>
+          <p class="eyebrow orders-eyebrow">History</p>
+          <h2>Completed</h2>
+        </div>
+        <p class="orders-meta">{completedOrders.length} orders</p>
+      </div>
+
+      {completedOrders.length ? (
+        <div class="order-list">
+          {completedOrders.map((order) => (
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
+              <div class="order-main">
+                <div>
+                  <p class="order-no">{order.orderNo}</p>
+                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <p class="order-subcopy">
+                    {order.items.length} items
+                    {" · "}
+                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+                <div class="order-total">{format(order.totalAmount)}</div>
+              </div>
+              <div class="order-rail">
+                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                  {statusLabel(order.paymentStatus)}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="card table-empty">No completed orders yet.</div>
+      )}
+    </section>
+
+    {closedOrders.length ? (
+      <section class="orders-section secondary-section">
+        <div class="orders-head">
+          <div>
+            <p class="eyebrow orders-eyebrow">Closed</p>
+            <h2>Cancelled / Refunded</h2>
+          </div>
+          <p class="orders-meta">{closedOrders.length} orders</p>
+        </div>
+        <div class="order-list">
+          {closedOrders.map((order) => (
+            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
+              <div class="order-main">
+                <div>
+                  <p class="order-no">{order.orderNo}</p>
+                  <h3>{order.customerName || "Guest checkout"}</h3>
+                  <p class="order-subcopy">
+                    {order.items.length} items
+                    {" · "}
+                    {new Date(order.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+                <div class="order-total">{format(order.totalAmount)}</div>
+              </div>
+              <div class="order-rail">
+                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                  {statusLabel(order.paymentStatus)}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    ) : null}
   </section>
 </BaseLayout>
 
@@ -215,6 +265,30 @@ function orderTone(order: OrderRecord) {
 </script>
 
 <style>
+  :global(body) {
+    background:
+      linear-gradient(180deg, #eef6ff 0%, #f8fbff 42%, #ffffff 100%);
+    color: #12314b;
+  }
+  :global(.site-header .header-shell) {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
+      rgba(255,255,255,.92);
+    border-color: rgba(45,108,223,.12);
+    box-shadow: 0 16px 40px rgba(16,78,157,.08);
+  }
+  :global(.site-header .brand-mark) {
+    color: #174ea6;
+  }
+  :global(.site-header .locale-trigger),
+  :global(.site-header .locale-option),
+  :global(.site-header .header-order) {
+    color: rgba(18,49,75,.72);
+  }
+  :global(.site-header .header-order) {
+    border-color: rgba(45,108,223,.14);
+    background: rgba(45,108,223,.06);
+  }
   .admin-shell {
     padding: 140px 0 88px;
     color: #12314b;
@@ -271,41 +345,22 @@ function orderTone(order: OrderRecord) {
       linear-gradient(180deg, rgba(45,108,223,.06), rgba(45,108,223,.03)),
       #f7fbff;
   }
-  .summary-strip {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
-    margin-bottom: 24px;
-  }
-  .summary-chip {
-    padding: 14px 16px;
-    border-radius: 18px;
-    border: 1px solid rgba(45,108,223,.14);
-    background: rgba(255,255,255,.96);
-    box-shadow: 0 14px 34px rgba(20,77,162,.08);
-  }
-  .summary-chip span {
-    display: block;
-    margin-bottom: 8px;
-    color: rgba(18,49,75,.56);
-    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .summary-chip strong {
-    font-size: 1.35rem;
-  }
   .orders-section {
     display: grid;
     gap: 16px;
+  }
+  .secondary-section {
+    margin-top: 34px;
   }
   .orders-head {
     display: flex;
     justify-content: space-between;
     align-items: end;
     gap: 16px;
+  }
+  .orders-head h2 {
+    margin: 0;
+    font-size: clamp(1.55rem, 3vw, 2.2rem);
   }
   .order-list {
     display: grid;
@@ -359,15 +414,8 @@ function orderTone(order: OrderRecord) {
     color: #174ea6;
   }
   .status-pill,
-  .payment-pill,
-  .order-card.urgent,
-  .order-card.active,
-  .order-card.done,
-  .order-card.muted {
-    display: inline-flex;
-  }
-  .status-pill,
   .payment-pill {
+    display: inline-flex;
     align-items: center;
     min-height: 38px;
     padding: 0 14px;
@@ -378,17 +426,18 @@ function orderTone(order: OrderRecord) {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     border: 1px solid rgba(45,108,223,.12);
+    color: #12314b;
   }
   .status-pill.urgent,
   .order-card.urgent {
-    border-color: rgba(207,69,72,.28);
+    border-color: rgba(207,69,72,.24);
     background:
       linear-gradient(180deg, rgba(255,244,244,.98), rgba(255,250,250,.98)),
       #ffffff;
   }
   .status-pill.active,
   .order-card.active {
-    border-color: rgba(45,108,223,.26);
+    border-color: rgba(45,108,223,.22);
     background:
       linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.98)),
       #ffffff;
@@ -404,9 +453,6 @@ function orderTone(order: OrderRecord) {
   .order-card.muted {
     opacity: 0.78;
   }
-  .payment-pill {
-    color: #12314b;
-  }
   .payment-pill.paid {
     background: rgba(77,168,126,.12);
     border-color: rgba(77,168,126,.24);
@@ -420,20 +466,12 @@ function orderTone(order: OrderRecord) {
     color: rgba(18,49,75,.64);
     background: rgba(255,255,255,.96);
   }
-  @media (max-width: 1080px) {
-    .summary-strip {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
   @media (max-width: 760px) {
     .page-copy,
     .orders-head,
     .order-main,
     .order-rail {
       display: grid;
-    }
-    .summary-strip {
-      grid-template-columns: 1fr;
     }
     .order-total {
       width: fit-content;

@@ -38,11 +38,9 @@ const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` :
           </div>
           <div class="action-row">
             <a class="pill-button" href={orderPath}>View order details</a>
-            <a class="ghost-button" href="/admin/orders">Merchant order queue</a>
           </div>
           <p class="success-note">
-            Customer tracking page: <strong>{orderPath}</strong><br />
-            Merchant page: <strong>/admin/orders</strong>
+            Customer tracking page: <strong>{orderPath}</strong>
           </p>
         </>
       ) : (
