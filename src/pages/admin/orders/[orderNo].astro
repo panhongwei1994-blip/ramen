@@ -278,46 +278,45 @@ function formatDate(value: string) {
 />
 
 <script is:inline>
-  const buttons = document.querySelectorAll(".admin-action");
   const notice = document.getElementById("admin-notice");
   const orderNo = document.querySelector("[data-order-no]")?.getAttribute("data-order-no") || "";
   const copyNode = document.getElementById("admin-order-detail-copy");
   const copy = JSON.parse(copyNode?.textContent || "{}");
 
-  for (const button of buttons) {
-    button.addEventListener("click", async () => {
-      if (!(button instanceof HTMLButtonElement) || !orderNo) return;
-      const endpoint = button.dataset.endpoint;
-      const method = button.dataset.method || "POST";
-      const rawPayload = button.dataset.payload;
-      const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+  document.addEventListener("click", async (event) => {
+    const target = event.target instanceof Element ? event.target.closest(".admin-action") : null;
+    if (!(target instanceof HTMLButtonElement) || !orderNo) return;
 
-      if (notice) {
-        notice.textContent = copy.updating;
-      }
+    const endpoint = target.dataset.endpoint;
+    const method = target.dataset.method || "POST";
+    const rawPayload = target.dataset.payload;
+    const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
 
-      const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
+    if (notice) {
+      notice.textContent = copy.updating;
+    }
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (notice) {
-          notice.textContent = data.error || copy.requestFailed;
-        }
-        return;
-      }
-
-      if (notice) {
-        notice.textContent = copy.updated;
-      }
-      window.location.reload();
+    const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: payload ? JSON.stringify(payload) : undefined,
     });
-  }
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (notice) {
+        notice.textContent = data.error || copy.requestFailed;
+      }
+      return;
+    }
+
+    if (notice) {
+      notice.textContent = copy.updated;
+    }
+    window.location.reload();
+  });
 </script>
 
 <style>

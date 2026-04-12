@@ -490,8 +490,21 @@ function queueActions(order: OrderRecord): QueueAction[] {
     }
   };
 
-  if (alertButton instanceof HTMLButtonElement) {
-    alertButton.addEventListener("click", async () => {
+  try {
+    if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
+      startAlertPolling();
+    }
+  } catch {
+    // Ignore storage failures.
+  }
+
+  document.addEventListener("click", async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const alertTrigger = target.closest("#enable-order-alerts");
+    if (alertTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
       try {
         audioContext = audioContext || new window.AudioContext();
         if (audioContext.state === "suspended") {
@@ -506,61 +519,51 @@ function queueActions(order: OrderRecord): QueueAction[] {
       }
 
       startAlertPolling();
-    });
-  }
-
-  try {
-    if (window.localStorage.getItem(storageKey) === "true" && alertButton instanceof HTMLButtonElement) {
-      startAlertPolling();
+      return;
     }
-  } catch {
-    // Ignore storage failures.
-  }
 
-  const inlineButtons = document.querySelectorAll("[data-inline-action='true']");
-  for (const node of inlineButtons) {
-    node.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+    const inlineButton = target.closest("[data-inline-action='true']");
+    if (!(inlineButton instanceof HTMLButtonElement)) return;
 
-      if (!(node instanceof HTMLButtonElement)) return;
-      const orderNo = node.dataset.orderNo;
-      const endpoint = node.dataset.endpoint;
-      const method = node.dataset.method || "POST";
-      const rawPayload = node.dataset.payload;
-      const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+    event.preventDefault();
+    event.stopPropagation();
 
-      if (!orderNo || !endpoint) return;
+    const orderNo = inlineButton.dataset.orderNo;
+    const endpoint = inlineButton.dataset.endpoint;
+    const method = inlineButton.dataset.method || "POST";
+    const rawPayload = inlineButton.dataset.payload;
+    const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
 
-      node.disabled = true;
-      const previousLabel = node.textContent;
-      node.textContent = copy.updating;
+    if (!orderNo || !endpoint) return;
 
-      try {
-        const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: payload ? JSON.stringify(payload) : undefined,
-        });
+    inlineButton.disabled = true;
+    const previousLabel = inlineButton.textContent;
+    inlineButton.textContent = copy.updating;
 
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          window.alert(data?.error || copy.updateError);
-          node.disabled = false;
-          node.textContent = previousLabel;
-          return;
-        }
+    try {
+      const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
 
-        window.location.reload();
-      } catch {
-        window.alert(copy.updateError);
-        node.disabled = false;
-        node.textContent = previousLabel;
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        window.alert(data?.error || copy.updateError);
+        inlineButton.disabled = false;
+        inlineButton.textContent = previousLabel;
+        return;
       }
-    });
-  }
+
+      window.location.reload();
+    } catch {
+      window.alert(copy.updateError);
+      inlineButton.disabled = false;
+      inlineButton.textContent = previousLabel;
+    }
+  });
 </script>
 
 <style>
