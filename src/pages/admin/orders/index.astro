@@ -14,7 +14,14 @@ const urgentStatuses = new Set(["paid_waiting_accept", "accepted", "cooking"]);
 const liveOrders = orders.filter((order) => urgentStatuses.has(order.orderStatus));
 const paidOrders = orders.filter((order) => order.paymentStatus === "paid");
 const revenue = paidOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-const newestOrder = orders[0] ?? null;
+const displayOrders = [...orders].sort((left, right) => {
+  const leftUrgent = urgentStatuses.has(left.orderStatus) ? 1 : 0;
+  const rightUrgent = urgentStatuses.has(right.orderStatus) ? 1 : 0;
+  if (leftUrgent !== rightUrgent) {
+    return rightUrgent - leftUrgent;
+  }
+  return right.createdAt.localeCompare(left.createdAt);
+});
 
 function statusLabel(value: string) {
   return value.replaceAll("_", " ");
@@ -32,7 +39,7 @@ function orderTone(order: OrderRecord) {
 <BaseLayout lang="en">
   <section class="container admin-shell">
     <div class="page-copy">
-      <p class="eyebrow">Merchant Orders</p>
+      <p class="eyebrow admin-eyebrow">Merchant Orders</p>
       <h1 class="section-title">Operations board</h1>
       <p class="section-copy">The queue is arranged for quick action: new paid orders first, live kitchen flow second, history after that.</p>
       <div class="alert-actions">
@@ -47,42 +54,22 @@ function orderTone(order: OrderRecord) {
       </div>
     ) : null}
 
-    <section class="overview-grid">
-      <article class="card metric-panel">
-        <span class="metric-label">Need attention</span>
-        <strong>{liveOrders.length}</strong>
-        <p>{liveOrders.length ? "Paid or active orders in the queue right now." : "No urgent orders waiting."}</p>
-      </article>
-      <article class="card metric-panel">
-        <span class="metric-label">Paid orders</span>
-        <strong>{paidOrders.length}</strong>
-        <p>Orders confirmed by Stripe and ready for fulfillment.</p>
-      </article>
-      <article class="card metric-panel">
-        <span class="metric-label">Recorded revenue</span>
-        <strong>{format(revenue)}</strong>
-        <p>Total of orders currently marked paid.</p>
-      </article>
-      <article class="card metric-panel spotlight">
-        <span class="metric-label">Latest order</span>
-        <strong>{newestOrder?.orderNo ?? "No orders yet"}</strong>
-        <p>{newestOrder ? `${statusLabel(newestOrder.orderStatus)} · ${format(newestOrder.totalAmount)}` : "Waiting for the first live order."}</p>
-      </article>
-    </section>
-
-    <section class="card priority-panel">
-      <div class="priority-copy">
-        <p class="eyebrow priority-eyebrow">Priority</p>
-        <h2>{liveOrders.length ? `${liveOrders.length} orders need action` : "Queue is clear"}</h2>
-        <p>{liveOrders.length ? "Handle the highlighted orders first. The strongest accent is reserved for paid orders waiting to be accepted." : "Keep alerts on. New paid orders will trigger a notification and refresh the board."}</p>
+    <section class="summary-strip">
+      <div class="summary-chip">
+        <span>Queue</span>
+        <strong>{orders.length}</strong>
       </div>
-      <div class="priority-list">
-        {liveOrders.slice(0, 3).map((order) => (
-          <a class:list={["priority-chip", orderTone(order)]} href={`/admin/orders/${order.orderNo}`}>
-            <span>{order.orderNo}</span>
-            <strong>{statusLabel(order.orderStatus)}</strong>
-          </a>
-        ))}
+      <div class="summary-chip">
+        <span>In progress</span>
+        <strong>{liveOrders.length}</strong>
+      </div>
+      <div class="summary-chip">
+        <span>Paid</span>
+        <strong>{paidOrders.length}</strong>
+      </div>
+      <div class="summary-chip">
+        <span>Revenue</span>
+        <strong>{format(revenue)}</strong>
       </div>
     </section>
 
@@ -95,9 +82,9 @@ function orderTone(order: OrderRecord) {
         <p class="orders-meta">{orders.length} total</p>
       </div>
 
-      {orders.length ? (
+      {displayOrders.length ? (
         <div class="order-list">
-          {orders.map((order) => (
+          {displayOrders.map((order) => (
             <a
               class:list={["card order-card", orderTone(order)]}
               href={`/admin/orders/${order.orderNo}`}
@@ -230,6 +217,7 @@ function orderTone(order: OrderRecord) {
 <style>
   .admin-shell {
     padding: 140px 0 88px;
+    color: #12314b;
   }
   .page-copy {
     display: flex;
@@ -242,6 +230,11 @@ function orderTone(order: OrderRecord) {
   .page-copy .section-copy {
     max-width: 42rem;
     margin: 0;
+    color: rgba(18,49,75,.72);
+  }
+  .admin-eyebrow,
+  .orders-eyebrow {
+    color: #2d6cdf;
   }
   .alert-actions {
     display: flex;
@@ -251,9 +244,11 @@ function orderTone(order: OrderRecord) {
   }
   .alert-toggle {
     min-height: 46px;
+    border-color: rgba(45,108,223,.16);
+    background: #ffffff;
+    color: #174ea6;
   }
   .alert-status,
-  .metric-label,
   .order-no,
   .orders-meta {
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
@@ -264,99 +259,43 @@ function orderTone(order: OrderRecord) {
   }
   .alert-status,
   .orders-meta {
-    color: var(--muted);
+    color: rgba(18,49,75,.56);
   }
   .storage-warning {
     margin-bottom: 22px;
     padding: 18px 20px;
-    color: var(--text);
+    color: #12314b;
     line-height: 1.7;
-    border-color: rgba(241, 182, 107, 0.25);
+    border-color: rgba(45,108,223,.16);
     background:
-      linear-gradient(180deg, rgba(241, 182, 107, 0.08), rgba(241, 182, 107, 0.04)),
-      var(--panel);
+      linear-gradient(180deg, rgba(45,108,223,.06), rgba(45,108,223,.03)),
+      #f7fbff;
   }
-  .overview-grid {
+  .summary-strip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 18px;
-  }
-  .metric-panel {
-    padding: 22px;
-    min-height: 172px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
-      rgba(22,16,14,.94);
-  }
-  .metric-panel strong {
-    display: block;
-    font-size: clamp(2rem, 4vw, 3rem);
-    line-height: 1;
-    margin: 10px 0 8px;
-  }
-  .metric-panel p {
-    margin: 0;
-    color: var(--muted);
-    line-height: 1.65;
-  }
-  .metric-label {
-    color: rgba(241, 182, 107, 0.9);
-  }
-  .spotlight {
-    background:
-      radial-gradient(circle at top right, rgba(241,182,107,.22), transparent 38%),
-      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
-      rgba(22,16,14,.98);
-  }
-  .priority-panel {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
     gap: 18px;
-    padding: 22px;
-    margin-bottom: 22px;
-    background:
-      radial-gradient(circle at right top, rgba(195,75,45,.2), transparent 30%),
-      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)),
-      rgba(19,14,12,.96);
+    margin-bottom: 24px;
   }
-  .priority-eyebrow,
-  .orders-eyebrow {
-    margin-bottom: 8px;
-  }
-  .priority-copy h2,
-  .orders-head h2 {
-    margin: 0;
-    font-size: clamp(1.65rem, 3vw, 2.35rem);
-  }
-  .priority-copy p:last-child {
-    margin: 10px 0 0;
-    color: var(--muted);
-    line-height: 1.7;
-  }
-  .priority-list {
-    display: grid;
-    gap: 12px;
-    align-content: center;
-  }
-  .priority-chip {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 18px;
+  .summary-chip {
+    padding: 14px 16px;
     border-radius: 18px;
-    border: 1px solid var(--line);
-    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(45,108,223,.14);
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 14px 34px rgba(20,77,162,.08);
   }
-  .priority-chip span {
-    color: var(--muted);
+  .summary-chip span {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(18,49,75,.56);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
-  .priority-chip strong {
-    text-transform: capitalize;
+  .summary-chip strong {
+    font-size: 1.35rem;
   }
   .orders-section {
     display: grid;
@@ -377,13 +316,15 @@ function orderTone(order: OrderRecord) {
     display: grid;
     gap: 14px;
     background:
-      linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018)),
-      rgba(19,14,12,.94);
+      linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,251,255,.98)),
+      #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    box-shadow: 0 18px 48px rgba(15,76,153,.08);
     transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
   }
   .order-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(241,182,107,.2);
+    border-color: rgba(45,108,223,.26);
   }
   .order-main,
   .order-rail {
@@ -394,7 +335,7 @@ function orderTone(order: OrderRecord) {
   }
   .order-no {
     margin: 0 0 10px;
-    color: rgba(241,182,107,.84);
+    color: #2d6cdf;
   }
   .order-card h3 {
     margin: 0;
@@ -403,22 +344,30 @@ function orderTone(order: OrderRecord) {
   }
   .order-subcopy {
     margin: 8px 0 0;
-    color: var(--muted);
+    color: rgba(18,49,75,.64);
   }
   .order-total {
     padding: 12px 16px;
     border-radius: 18px;
-    border: 1px solid rgba(241,182,107,.18);
-    background: rgba(241,182,107,.08);
+    border: 1px solid rgba(45,108,223,.14);
+    background: rgba(45,108,223,.08);
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
     font-size: 1rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     white-space: nowrap;
+    color: #174ea6;
+  }
+  .status-pill,
+  .payment-pill,
+  .order-card.urgent,
+  .order-card.active,
+  .order-card.done,
+  .order-card.muted {
+    display: inline-flex;
   }
   .status-pill,
   .payment-pill {
-    display: inline-flex;
     align-items: center;
     min-height: 38px;
     padding: 0 14px;
@@ -428,61 +377,52 @@ function orderTone(order: OrderRecord) {
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-  }
-  .status-pill {
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(45,108,223,.12);
   }
   .status-pill.urgent,
-  .priority-chip.urgent,
   .order-card.urgent {
-    border-color: rgba(255,143,143,.35);
+    border-color: rgba(207,69,72,.28);
     background:
-      linear-gradient(180deg, rgba(255,143,143,.12), rgba(255,143,143,.04)),
-      rgba(33,18,18,.95);
+      linear-gradient(180deg, rgba(255,244,244,.98), rgba(255,250,250,.98)),
+      #ffffff;
   }
   .status-pill.active,
-  .priority-chip.active,
   .order-card.active {
-    border-color: rgba(241,182,107,.3);
+    border-color: rgba(45,108,223,.26);
     background:
-      linear-gradient(180deg, rgba(241,182,107,.1), rgba(241,182,107,.03)),
-      rgba(28,20,16,.95);
+      linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.98)),
+      #ffffff;
   }
   .status-pill.done,
-  .priority-chip.done,
   .order-card.done {
-    border-color: rgba(116,196,166,.25);
+    border-color: rgba(77,168,126,.24);
     background:
-      linear-gradient(180deg, rgba(116,196,166,.08), rgba(116,196,166,.03)),
-      rgba(17,24,20,.95);
+      linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.98)),
+      #ffffff;
   }
   .status-pill.muted,
-  .priority-chip.muted,
   .order-card.muted {
     opacity: 0.78;
   }
   .payment-pill {
-    border: 1px solid rgba(255,255,255,.08);
+    color: #12314b;
   }
   .payment-pill.paid {
-    background: rgba(116,196,166,.12);
-    border-color: rgba(116,196,166,.25);
+    background: rgba(77,168,126,.12);
+    border-color: rgba(77,168,126,.24);
   }
   .payment-pill.unpaid {
-    background: rgba(255,143,143,.1);
-    border-color: rgba(255,143,143,.22);
+    background: rgba(207,69,72,.1);
+    border-color: rgba(207,69,72,.2);
   }
   .table-empty {
     padding: 28px 22px;
-    color: var(--muted);
+    color: rgba(18,49,75,.64);
+    background: rgba(255,255,255,.96);
   }
   @media (max-width: 1080px) {
-    .overview-grid {
+    .summary-strip {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .priority-panel {
-      grid-template-columns: 1fr;
     }
   }
   @media (max-width: 760px) {
@@ -492,17 +432,11 @@ function orderTone(order: OrderRecord) {
     .order-rail {
       display: grid;
     }
-    .overview-grid {
+    .summary-strip {
       grid-template-columns: 1fr;
-    }
-    .metric-panel {
-      min-height: 0;
     }
     .order-total {
       width: fit-content;
-    }
-    .priority-chip {
-      display: grid;
     }
   }
 </style>
