@@ -184,9 +184,9 @@ function formatDate(value: string) {
                     <strong>{item.productName}</strong>
                     <strong>{format(item.subtotal)}</strong>
                   </div>
-                  <p>{isZh ? `${format(item.unitPrice)} /份 × ${item.quantity}` : `${format(item.unitPrice)} each × ${item.quantity}`}</p>
-                  {item.addOns.length ? <p>{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
-                  {item.note ? <p>{item.note}</p> : null}
+                  <p class="line-item-base">{isZh ? `${format(item.unitPrice)} /份 × ${item.quantity}` : `${format(item.unitPrice)} each × ${item.quantity}`}</p>
+                  {item.addOns.length ? <p class="line-item-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p> : null}
+                  {item.note ? <p class="line-item-note">{item.note}</p> : null}
                 </div>
               </article>
             ))}
@@ -586,6 +586,23 @@ function formatDate(value: string) {
   .line-item p,
   .timeline-item span {
     margin: 6px 0 0;
+  }
+  .line-item-base {
+    color: rgba(18,49,75,.68);
+  }
+  .line-item-addon {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 10px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(45,108,223,.1);
+    color: #174ea6;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .line-item-note {
+    color: rgba(18,49,75,.82);
   }
   h2 {
     margin: 0;

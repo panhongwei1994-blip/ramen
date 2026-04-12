@@ -186,6 +186,13 @@
                   {{ isSubmitting ? "Redirecting to Stripe..." : copy.placeOrder }}
                 </button>
               </div>
+              <div v-if="isSubmitting" class="checkout-progress" aria-live="polite">
+                <span class="checkout-progress-spinner" aria-hidden="true"></span>
+                <div>
+                  <strong>Preparing secure checkout...</strong>
+                  <p>Your order is being saved and Stripe is loading.</p>
+                </div>
+              </div>
               <p v-if="paymentError" class="error-note">{{ paymentError }}</p>
             </div>
           </div>
@@ -1071,6 +1078,39 @@ textarea {
   border: 1px solid rgba(255,255,255,.08);
   color: var(--muted);
   line-height: 1.6;
+}
+.checkout-progress {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(212,165,74,.24);
+  background: rgba(212,165,74,.08);
+  color: var(--text);
+}
+.checkout-progress strong {
+  display: block;
+  font-size: 0.95rem;
+}
+.checkout-progress p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.checkout-progress-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(241,182,107,.28);
+  border-top-color: var(--gold-soft);
+  animation: checkout-spin 0.8s linear infinite;
+}
+@keyframes checkout-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .mobile-cart {
   position: fixed;
