@@ -15,16 +15,6 @@ const content = getContent(lang);
         <span>{item}</span>
       ))}
     </div>
-  </div>
-
-  <div class="future-grid">
-    {content.future.map((item, index) => (
-      <article class="future-card">
-        <span class="future-index">{String(index + 1).padStart(2, "0")}</span>
-        <p>{item}</p>
-      </article>
-    ))}
-  </div>
 </section>
 
 <style>
