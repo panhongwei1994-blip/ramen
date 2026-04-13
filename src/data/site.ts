@@ -1,4 +1,4 @@
-export const locales = ["en", "de", "es", "fr", "nl"] as const;
+export const locales = ["en", "de", "es", "fr", "nl", "zh"] as const;
 export type Locale = (typeof locales)[number];
 
 export type Product = {
@@ -18,6 +18,7 @@ const sameText = (value: string): Record<Locale, string> => ({
   es: value,
   fr: value,
   nl: value,
+  zh: value,
 });
 
 export const siteContent = {
@@ -65,6 +66,8 @@ export const siteContent = {
       chefPick: "CHEF PICK",
       popular: "LATE NIGHT FAVORITE",
     },
+    shopClosedTitle: "Currently Taking a Break",
+    shopClosedDesc: "We are currently closed for orders. Please check back later or visit us during business hours!",
     addToCart: "Add to Cart",
     customize: "Customize",
     quantity: "Quantity",
@@ -88,7 +91,7 @@ export const siteContent = {
     delivery: "Delivery",
     pickup: "Pickup",
     paymentMethod: "Payment method",
-    stripe: "Stripe",
+    stripe: "Online Payment",
     cash: "Cash on Delivery",
     reviewTitle: "A modern nocturnal ramen sanctuary",
     reviewBody:
@@ -185,7 +188,7 @@ export const siteContent = {
     delivery: "Lieferung",
     pickup: "Abholung",
     paymentMethod: "Zahlungsart",
-    stripe: "Stripe",
+    stripe: "Online Payment",
     cash: "Barzahlung bei Lieferung",
     reviewTitle: "Eine Ramen-Bar, zu der Gäste nachts zurückkehren",
     reviewBody:
@@ -282,7 +285,7 @@ export const siteContent = {
     delivery: "Entrega",
     pickup: "Recogida",
     paymentMethod: "Método de pago",
-    stripe: "Stripe",
+    stripe: "Pago online",
     cash: "Pago contra entrega",
     reviewTitle: "Una barra de ramen a la que se vuelve de noche",
     reviewBody:
@@ -379,7 +382,7 @@ export const siteContent = {
     delivery: "Livraison",
     pickup: "Retrait",
     paymentMethod: "Moyen de paiement",
-    stripe: "Stripe",
+    stripe: "Paiement en ligne",
     cash: "Paiement à la livraison",
     reviewTitle: "Un bar à ramen où l’on revient après la tombée de la nuit",
     reviewBody:
@@ -476,7 +479,7 @@ export const siteContent = {
     delivery: "Bezorging",
     pickup: "Afhalen",
     paymentMethod: "Betaalmethode",
-    stripe: "Stripe",
+    stripe: "Online betalen",
     cash: "Contant bij levering",
     reviewTitle: "Een ramenbar waar mensen na donker voor terugkomen",
     reviewBody:
@@ -505,6 +508,105 @@ export const siteContent = {
     footerStory:
       "Sumi Ramen combineert de energie van een Tokyo-steegje met een schonere digitale bestelervaring, zodat het eten rijk voelt en de checkout snel blijft.",
     footerLinks: ["Midnight Tonkotsu", "Gyoza Set", "Afhalen", "Late bezorging"],
+  },
+  zh: {
+    lang: "zh",
+    locale: "zh-CN",
+    currency: "USD",
+    brand: "Sumi Ramen",
+    metaTitle: "Sumi Ramen | 东京风格拉面店",
+    metaDescription:
+      "深夜日式拉面，慢火熬制的高汤，劲道的面条，酥脆的小食，快速结账。",
+    heroBadge: "慢火熬制。快捷出餐。营业至凌晨。",
+    heroTitle: "正宗东京深夜拉面，匠心打造。",
+    heroBody:
+      "16小时丝滑猪骨高汤，手作劲道面条，火枪喷炙叉烧。为您提供无需等待的高端深夜居酒屋体验。",
+    orderNow: "立即下单",
+    cartNav: "购物车",
+    viewMenu: "查看菜单",
+    addToHomeScreen: "安装应用",
+    installHintIos: "点击分享，然后选择‘添加到主屏幕’。",
+    installHintGeneric: "使用浏览器菜单，选择‘添加到主屏幕’或‘安装应用’。",
+    trust: [
+      "900+ 好评，均分 4.9",
+      "高汤熬制 16 小时",
+      "厨房营业至凌晨 1:00",
+      "自取或外送仅需 25-40 分钟",
+    ],
+    trustBody: [
+      "老顾客总是在午夜回来寻味。",
+      "选用大骨、昆布、香料和时间精心熬制。",
+      "无需漫长等待的深夜慰藉。",
+      "价格透明，移动端结账迅速。",
+    ],
+    categories: {
+      all: "全部",
+      signature: "招牌拉面",
+      sashimi: "浓郁博多风",
+      nigiri: "清爽淡雅风",
+      boxes: "超值套餐",
+      sides: "精致小食",
+      drinks: "清爽饮品",
+    },
+    tags: {
+      bestSeller: "销量冠军",
+      chefPick: "主厨精选",
+      popular: "深夜最爱",
+    },
+    shopClosedTitle: "休息中",
+    shopClosedDesc: "我们目前已休息。请稍后再来，或在营业时间访问！",
+    addToCart: "加入购物车",
+    customize: "个性化定制",
+    quantity: "数量",
+    addOns: "加料",
+    notes: "备注",
+    notesPlaceholder: "多点辣油，不要葱，面软点...",
+    total: "总计",
+    subtotal: "小计",
+    deliveryFee: "配送费",
+    checkout: "结账",
+    placeOrder: "提交订单",
+    cartTitle: "您的购物车",
+    emptyCart: "购物车是空的。加一碗拉面或几份小食开始吧。",
+    viewCart: "查看购物车",
+    item: "件商品",
+    items: "件商品",
+    name: "姓名",
+    phone: "电话号码",
+    address: "配送地址",
+    deliveryMethod: "配送 / 自取",
+    delivery: "送餐",
+    pickup: "自取",
+    paymentMethod: "支付方式",
+    stripe: "在线支付",
+    cash: "货到付款 / 到店支付",
+    reviewTitle: "一个让人流连忘返的深夜拉面庇护所",
+    reviewBody:
+      "醇厚的汤头第一次就征服了客人，而流畅的下单体验让他们成为了常客。",
+    galleryTitle: "匠心之作：拉面、小食与深夜的韵律。",
+    galleryBody:
+      "快速扫一眼定义我们餐厅的质感：浓郁的高汤、金黄酥脆的小吃、冰凉的饮料，以及为深夜渴望量身定制的菜单。",
+    futureTitle: "为什么我们的拉面总是售罄",
+    future: [
+      "高汤每日小批量准备，以确保更好的质感和深度。",
+      "面条即点即做，无论是自取还是外送都能保持劲道。",
+      "自制辣油、味玉和叉烧升级，真正提升整碗面的口感。",
+      "深夜菜单适合独自享用，也适合聚会分享。",
+    ],
+    locationAddress: "241 Noren Alley, San Francisco, CA 94107",
+    phoneLabel: "+1 (415) 555-0188",
+    email: "hello@sumiramen.com",
+    hoursWeek: "周一至周四，周日 · 11:30-01:00",
+    hoursWeekend: "周五至周六 · 11:30-02:00",
+    footerHeading: "以汤为本的拉面，现代面馆的高效节奏。",
+    footerMeta: [
+      "16小时熬制高汤",
+      "手作拉面",
+      "营业至深夜",
+    ],
+    footerStory:
+      "Sumi Ramen 将东京小巷的活力与纯净的数字订单流相结合，让食物保持浓郁口感的同时，结账流程依然迅速。",
+    footerLinks: ["深夜博多拉面", "饺子套餐", "到店自取", "深夜外送"],
   },
 } as const;
 

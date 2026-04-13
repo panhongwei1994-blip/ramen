@@ -44,6 +44,7 @@ export function normalizeCreateOrderPayload(input: {
   remark?: string;
   checkout?: ClientCheckout;
   fulfillment?: FulfillmentMethod;
+  paymentMethod?: string;
 }): CreateOrderInput {
   const checkout = input.checkout ?? {};
   const fulfillment = (input.fulfillment ?? checkout.fulfillment ?? "delivery") as FulfillmentMethod;
@@ -70,6 +71,7 @@ export function normalizeCreateOrderPayload(input: {
           : "",
     remark: typeof input.remark === "string" ? input.remark.trim() : "",
     fulfillment,
+    paymentMethod: input.paymentMethod === "cash" ? "cash" : "card",
     items: normalizeCartItems(input.items ?? input.cart),
   };
 }

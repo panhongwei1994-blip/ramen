@@ -10,6 +10,13 @@
   --danger: #ff8f8f;
   --radius: 30px;
   --content: 1220px;
+
+  /* Admin Theme Variables */
+  --admin-bg: #f8fbff;
+  --admin-text: #0f172a;
+  --admin-muted: #64748b;
+  --admin-accent: #2d6cdf;
+  --admin-gold: #c29c5e;
 }
 
 * {

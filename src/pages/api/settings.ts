@@ -1,11 +1,14 @@
 import type { APIRoute } from "astro";
 import { json } from "@/lib/http";
-import { getProductsFromD1, getRuntimeEnv } from "@/lib/orders";
+import { getSettingFromD1, getRuntimeEnv } from "@/lib/orders";
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
   const runtimeEnv = getRuntimeEnv(locals);
-  const products = await getProductsFromD1(runtimeEnv);
-  return json({ products });
+  const isOpen = await getSettingFromD1("is_open", runtimeEnv);
+
+  return json({ 
+    isOpen: isOpen !== "0" 
+  });
 };

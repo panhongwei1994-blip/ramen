@@ -1,0 +1,50 @@
+20:23:25 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+20:23:25 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+20:23:25 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+20:23:25 [content] Syncing content
+20:23:25 [content] Synced content
+20:23:25 [types] Generated 37ms
+20:23:25 [check] Getting diagnostics for Astro files in /Users/pan/Documents/GitHub/sora-ramen...
+[96msrc/lib/orders.ts[0m:[93m799[0m:[93m10[0m - [91merror[0m[90m ts(2552): [0mCannot find name 'OrderLogRow'. Did you mean 'OrderRow'?
+
+[7m799[0m     .all<OrderLogRow>();
+[7m   [0m [91m         ~~~~~~~~~~~[0m
+[96msrc/lib/orders.ts[0m:[93m783[0m:[93m96[0m - [91merror[0m[90m ts(2304): [0mCannot find name 'CategoryRow'.
+
+[7m783[0m   const { results } = await db.prepare(`SELECT * FROM categories ORDER BY sort_order ASC`).all<CategoryRow>();
+[7m   [0m [91m                                                                                               ~~~~~~~~~~~[0m
+[96msrc/lib/orders.ts[0m:[93m760[0m:[93m93[0m - [91merror[0m[90m ts(2304): [0mCannot find name 'ProductRow'.
+
+[7m760[0m   const row = await db.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first<ProductRow>();
+[7m   [0m [91m                                                                                            ~~~~~~~~~~[0m
+[96msrc/lib/orders.ts[0m:[93m739[0m:[93m94[0m - [91merror[0m[90m ts(2304): [0mCannot find name 'ProductRow'.
+
+[7m739[0m   const { results } = await db.prepare(`SELECT * FROM products ORDER BY sort_order ASC`).all<ProductRow>();
+[7m   [0m [91m                                                                                             ~~~~~~~~~~[0m
+[96msrc/lib/orders.ts[0m:[93m999[0m:[93m9[0m - [93mwarning[0m[90m ts(6133): [0m'descriptionStr' is declared but its value is never read.
+
+[7m999[0m     let descriptionStr = product.description;
+[7m   [0m [93m        ~~~~~~~~~~~~~~[0m
+[96msrc/lib/orders.ts[0m:[93m2[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'getSeedProduct' is declared but its value is never read.
+
+[7m2[0m import { getSeedProduct, getProductLocale, type CatalogAddOn } from "@/lib/catalog";
+[7m [0m [93m         ~~~~~~~~~~~~~~[0m
+
+[96msrc/pages/admin/orders/index.astro[0m:[93m353[0m:[93m37[0m - [93mwarning[0m[90m ts(6133): [0m'idx' is declared but its value is never read.
+
+[7m353[0m           {closedOrders.map((order, idx) => (
+[7m   [0m [93m                                    ~~~[0m
+[96msrc/pages/admin/orders/index.astro[0m:[93m310[0m:[93m40[0m - [93mwarning[0m[90m ts(6133): [0m'idx' is declared but its value is never read.
+
+[7m310[0m           {completedOrders.map((order, idx) => (
+[7m   [0m [93m                                       ~~~[0m
+[96msrc/pages/admin/orders/index.astro[0m:[93m468[0m:[93m77[0m - [93mwarning[0m[90m ts(2568): [0mProperty 'webkitAudioContext' may not exist on type 'Window & typeof globalThis'. Did you mean 'AudioContext'?
+
+[7m468[0m           audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+[7m   [0m [93m                                                                            ~~~~~~~~~~~~~~~~~~[0m
+
+Result (35 files): 
+- 4 errors
+- 0 warnings
+- 5 hints
+

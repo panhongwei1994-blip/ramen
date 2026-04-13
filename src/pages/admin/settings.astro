@@ -1,0 +1,236 @@
+---
+import BaseLayout from "@/components/layout/BaseLayout.astro";
+import { getSettingFromD1, getRuntimeEnv } from "@/lib/orders";
+
+export const prerender = false;
+
+const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const isZh = uiLang === "zh";
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+
+const isOpenValue = await getSettingFromD1("is_open", runtimeEnv);
+const isOpen = isOpenValue !== "0"; // Default to true if not set
+
+const copy = isZh
+  ? {
+      title: "店铺设置",
+      subtitle: "管理店铺的基础运行状态。",
+      statusTitle: "营业状态",
+      statusOpen: "正在营业",
+      statusClosed: "休息中",
+      openDesc: "客户可以正常浏览菜单并下单。",
+      closedDesc: "客户将看到休息提示，无法提交新订单。",
+      save: "保存更改",
+      saving: "保存中...",
+      success: "设置已更新",
+      error: "更新失败",
+      back: "返回订单页",
+    }
+  : {
+      title: "Shop Settings",
+      subtitle: "Manage the basic operational state of your shop.",
+      statusTitle: "Business Status",
+      statusOpen: "Open for Business",
+      statusClosed: "Closed / On Break",
+      openDesc: "Customers can browse and place orders normally.",
+      closedDesc: "Customers will see a closed notice and cannot place orders.",
+      save: "Save Changes",
+      saving: "Saving...",
+      success: "Settings updated",
+      error: "Failed to update",
+      back: "Back to Orders",
+    };
+---
+
+<BaseLayout lang={uiLang}>
+  <section class="container admin-shell">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1 class="section-title">{copy.title}</h1>
+        <p class="section-copy">{copy.subtitle}</p>
+      </div>
+      <a class="ghost-button" href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.back}</a>
+    </div>
+
+    <div class="card settings-card">
+      <div class="setting-row">
+        <div class="setting-info">
+          <h3>{copy.statusTitle}</h3>
+          <p>{isOpen ? copy.openDesc : copy.closedDesc}</p>
+        </div>
+        <div class="setting-action">
+          <button
+            type="button"
+            class:list={["status-toggle", { active: isOpen }]}
+            id="status-toggle"
+            data-current={isOpen ? "1" : "0"}
+          >
+            <div class="toggle-track">
+              <div class="toggle-thumb"></div>
+            </div>
+            <span>{isOpen ? copy.statusOpen : copy.statusClosed}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-footer">
+        <div id="status-message" class="status-msg"></div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  const toggle = document.getElementById("status-toggle");
+  const msg = document.getElementById("status-message");
+  const isZh = new URLSearchParams(window.location.search).get("ui") === "zh";
+  const copy = isZh 
+    ? { saving: "保存中...", success: "设置已更新", error: "更新失败" }
+    : { saving: "Saving...", success: "Settings updated", error: "Failed to update" };
+
+  toggle?.addEventListener("click", async () => {
+    const current = toggle.dataset.current;
+    const next = current === "1" ? "0" : "1";
+    
+    if (msg) {
+        msg.textContent = copy.saving;
+        msg.className = "status-msg info";
+    }
+
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "is_open", value: next }),
+      });
+
+      if (res.ok) {
+        if (msg) {
+            msg.textContent = copy.success;
+            msg.className = "status-msg success";
+        }
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        throw new Error();
+      }
+    } catch (e) {
+      if (msg) {
+          msg.textContent = copy.error;
+          msg.className = "status-msg error";
+      }
+    }
+  });
+</script>
+
+<style>
+  :global(body) {
+    background: var(--admin-bg);
+    color: var(--admin-text);
+  }
+  .admin-shell {
+    padding: 140px 0 88px;
+  }
+  .admin-shell :global(.eyebrow) {
+    color: var(--admin-gold);
+    font-weight: 800;
+  }
+  .admin-shell :global(.section-copy) {
+    color: var(--admin-muted);
+  }
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 32px;
+  }
+  .settings-card {
+    padding: 32px;
+    background: #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+  }
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .setting-info h3 {
+    margin: 0 0 8px;
+    font-size: 1.25rem;
+    color: var(--admin-text);
+  }
+  .setting-info p {
+    margin: 0;
+    color: var(--admin-muted);
+    font-weight: 500;
+  }
+  .status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: #f1f5f9;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .status-toggle.active {
+    background: rgba(45,108,223,.1);
+    border-color: #2d6cdf;
+    color: #2d6cdf;
+  }
+  .toggle-track {
+    width: 40px;
+    height: 20px;
+    background: #cbd5e1;
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .active .toggle-track {
+    background: #2d6cdf;
+  }
+  .toggle-thumb {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+  .active .toggle-thumb {
+    transform: translateX(20px);
+  }
+  .settings-footer {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .status-msg {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .status-msg.success { color: #10b981; }
+  .status-msg.error { color: #ef4444; }
+  .status-msg.info { color: #3b82f6; }
+
+  .ghost-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 22px;
+    border-radius: 999px;
+    background: white;
+    border: 1px solid rgba(45,108,223,.16);
+    color: #2d6cdf;
+    font-weight: 600;
+    text-decoration: none;
+  }
+</style>

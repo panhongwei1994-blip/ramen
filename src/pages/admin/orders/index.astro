@@ -55,7 +55,12 @@ const copy = isZh
       actionCooking: "开始出餐",
       actionDelivery: "开始配送",
       actionComplete: "完成",
+      cash: "现金",
+      card: "卡支付",
       viewAll: "查看历史订单",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
     }
   : {
       pageEyebrow: "Merchant Orders",
@@ -91,7 +96,12 @@ const copy = isZh
       actionCooking: "Start cooking",
       actionDelivery: "Out for delivery",
       actionComplete: "Complete",
+      cash: "Cash",
+      card: "Card",
       viewAll: "View historical orders",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
@@ -190,9 +200,15 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
 <BaseLayout lang={uiLang}>
   <section class="container admin-shell" data-ui-lang={uiLang}>
-    <div class="page-copy">
+    <nav class="admin-nav card">
+      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/orders") }]} href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.navOrders}</a>
+      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/products") }]} href={`/admin/products${isZh ? "?ui=zh" : ""}`}>{copy.navProducts}</a>
+      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/settings") }]} href={`/admin/settings${isZh ? "?ui=zh" : ""}`}>{copy.navSettings}</a>
+    </nav>
+
+    <div class="page-head">
       <div>
-        <p class="eyebrow admin-eyebrow">{copy.pageEyebrow}</p>
+        <p class="eyebrow">{copy.pageEyebrow}</p>
         <h1 class="section-title">{copy.pageTitle}</h1>
         <p class="section-copy">{copy.pageCopy}</p>
       </div>
@@ -236,7 +252,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
                   <p class="order-subcopy">
                     {itemCountLabel(order.items.length)}
                     {" · "}
-                    {fulfillmentLabel(order.fulfillment)}
+                    <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
                     {" · "}
                     {formatDate(order.createdAt)}
                   </p>
@@ -263,6 +279,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
                 <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
                 <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
                   {statusLabel(order.paymentStatus)}
+                </span>
+                <span class:list={["method-pill", order.paymentMethod]}>
+                  {order.paymentMethod === "cash" ? copy.cash : copy.card}
                 </span>
               </div>
               <div class="order-actions">
@@ -506,7 +525,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
           const alertableOrders = orders.filter(
             (order) =>
               order?.id &&
-              order.paymentStatus === "paid" &&
+              (order.paymentStatus === "paid" || order.paymentMethod === "cash") &&
               ["paid_waiting_accept", "accepted", "cooking", "delivering"].includes(order.orderStatus),
           );
           const newOrders = alertableOrders.filter((order) => !seenOrders.has(order.id));
@@ -606,9 +625,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
 <style>
   :global(body) {
-    background:
-      linear-gradient(180deg, #eef6ff 0%, #f8fbff 42%, #ffffff 100%);
-    color: #12314b;
+    background: var(--admin-bg);
+    color: var(--admin-text);
   }
   :global(.site-header .header-shell) {
     background:
@@ -639,7 +657,14 @@ function queueActions(order: OrderRecord): QueueAction[] {
   }
   .admin-shell {
     padding: 140px 0 88px;
-    color: #12314b;
+    color: var(--admin-text);
+  }
+  .admin-shell :global(.eyebrow) {
+    color: var(--admin-gold);
+    font-weight: 800;
+  }
+  .admin-shell :global(.section-copy) {
+    color: var(--admin-muted);
   }
   .page-copy {
     display: flex;
@@ -732,7 +757,40 @@ function queueActions(order: OrderRecord): QueueAction[] {
     gap: 16px;
   }
   .secondary-section {
-    margin-top: 34px;
+    scroll-margin-top: 140px;
+  }
+  .admin-nav {
+    display: flex;
+    gap: 8px;
+    padding: 6px;
+    margin-bottom: 32px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(16,78,157,.04);
+  }
+  .nav-item {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+    transition: all 0.2s;
+  }
+  .nav-item:hover {
+    color: var(--admin-accent);
+    background: rgba(45,108,223,.04);
+  }
+  .nav-item.active {
+    background: var(--admin-accent);
+    color: #ffffff;
+  }
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
   }
   .orders-head {
     display: flex;
@@ -909,6 +967,41 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .payment-pill.unpaid {
     background: rgba(207,69,72,.1);
     border-color: rgba(207,69,72,.2);
+  }
+  .method-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(45,108,223,.06);
+    color: #2d6cdf;
+    border: 1px solid rgba(45,108,223,.14);
+  }
+  .method-pill.cash {
+    background: rgba(251,188,5,0.12);
+    color: #b08000;
+    border-color: rgba(251,188,5,0.3);
+    box-shadow: 0 0 12px rgba(251,188,5,0.1);
+  }
+  .fulfillment-highlight {
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .fulfillment-highlight.delivery {
+    background: #e8f0fe;
+    color: #1967d2;
+  }
+  .fulfillment-highlight.pickup {
+    background: #f3e8fd;
+    color: #9334e6;
   }
   .detail-link,
   .queue-action {

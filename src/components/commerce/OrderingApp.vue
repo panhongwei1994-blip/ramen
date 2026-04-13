@@ -6,13 +6,25 @@
         :key="category.id"
         :class="['category-chip', { active: category.id === activeCategory }]"
         type="button"
-        @click="activeCategory = category.id"
+         @click="activeCategory = category.id"
       >
         {{ category.label }}
       </button>
     </div>
 
-    <div id="order-menu" class="menu-grid">
+    <div v-if="!shopOpen" class="closed-notice card">
+      <div class="closed-icon">🌙</div>
+      <div class="closed-copy">
+        <h3>{{ copy.shopClosedTitle || 'Currently Closed' }}</h3>
+        <p>{{ copy.shopClosedDesc || 'We are currently taking a break. Please check back later!' }}</p>
+      </div>
+    </div>
+
+    <div v-else-if="!dynamicLoaded" class="menu-loading">
+      <div class="spinner"></div>
+    </div>
+
+    <div id="order-menu" class="menu-grid" v-else>
       <article v-for="product in filteredProducts" :key="product.id" class="product-card card">
         <button class="image-button" type="button" @click="openProduct(product)">
           <img :src="product.image" :alt="product.name" class="product-image" loading="lazy" />
@@ -175,18 +187,65 @@
                 </div>
               </div>
 
+              <div class="choice-group">
+                <span>{{ copy.paymentMethod }}</span>
+                <div class="choice-row">
+                  <button
+                    type="button"
+                    :class="['choice-chip', { active: checkout.paymentMethod === 'card' }]"
+                    @click="checkout.paymentMethod = 'card'"
+                  >
+                    <span class="choice-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2" ry="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                    </span>
+                    {{ copy.stripe }}
+                  </button>
+                  <button
+                    type="button"
+                    :class="['choice-chip', { active: checkout.paymentMethod === 'cash' }]"
+                    @click="checkout.paymentMethod = 'cash'"
+                  >
+                    <span class="choice-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23" />
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                      </svg>
+                    </span>
+                    {{ copy.cash }}
+                  </button>
+                </div>
+              </div>
 
+              <div class="checkout-form card" v-if="checkout.paymentMethod === 'cash'">
+                <div class="form-grid">
+                  <label>
+                    <span class="eyebrow-inner">{{ copy.name }}</span>
+                    <input v-model="checkout.name" type="text" placeholder="John Doe" />
+                  </label>
+                  <label>
+                    <span class="eyebrow-inner">{{ copy.phone }}</span>
+                    <input v-model="checkout.phone" type="tel" placeholder="+1..." />
+                  </label>
+                  <label v-if="checkout.fulfillment === 'delivery'">
+                    <span class="eyebrow-inner">{{ copy.address }}</span>
+                    <textarea v-model="checkout.address" rows="2" placeholder="Street, Apt..."></textarea>
+                  </label>
+                </div>
+              </div>
 
               <div class="checkout-actions">
                 <button class="primary-button checkout-submit" type="button" :disabled="!canPlaceOrder || isSubmitting" @click="placeOrder">
-                  {{ isSubmitting ? "Redirecting to Stripe..." : copy.placeOrder }}
+                  {{ isSubmitting ? (checkout.paymentMethod === 'card' ? "Redirecting to Stripe..." : "Placing Order...") : copy.placeOrder }}
                 </button>
               </div>
               <div v-if="isSubmitting" class="checkout-progress" aria-live="polite">
                 <span class="checkout-progress-spinner" aria-hidden="true"></span>
                 <div>
-                  <strong>Preparing secure checkout...</strong>
-                  <p>Your order is being saved and Stripe is loading.</p>
+                  <strong>{{ checkout.paymentMethod === 'card' ? "Preparing secure checkout..." : "Submitting your order..." }}</strong>
+                  <p>{{ checkout.paymentMethod === 'card' ? "Your order is being saved and Stripe is loading." : "Please wait while we finalize your order." }}</p>
                 </div>
               </div>
               <p v-if="paymentError" class="error-note">{{ paymentError }}</p>
@@ -217,28 +276,24 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { formatPrice, getContent, getLocalizedProducts, normalizeLocale } from "@/data/site";
+import { formatPrice, getContent, normalizeLocale } from "@/data/site";
 
 const CART_STORAGE_KEY = "sumi-ramen-cart";
 
 const props = defineProps<{ lang?: string }>();
 const lang = normalizeLocale(props.lang);
 const copy = getContent(lang);
-const products = getLocalizedProducts(lang);
-const categories = [
-  { id: "all", label: copy.categories.all },
-  { id: "signature", label: copy.categories.signature },
-  { id: "sashimi", label: copy.categories.sashimi },
-  { id: "nigiri", label: copy.categories.nigiri },
-  { id: "boxes", label: copy.categories.boxes },
-  { id: "sides", label: copy.categories.sides },
-  { id: "drinks", label: copy.categories.drinks },
-];
 
-const activeCategory = ref<typeof categories[number]["id"]>("all");
+// Data refs
+const categories = ref<Array<{ id: string; label: string }>>([]);
+const products = ref<any[]>([]);
+const shopOpen = ref(true);
+const dynamicLoaded = ref(false);
+
+const activeCategory = ref<string>("all");
 const cartOpen = ref(false);
 const productOpen = ref(false);
-const selected = ref(products[0]);
+const selected = ref<any>(null);
 const qty = ref(1);
 const addOnIds = ref<string[]>([]);
 const notes = ref("");
@@ -246,34 +301,117 @@ const orderPlaced = ref(false);
 const orderCode = ref("");
 const paymentError = ref("");
 const isSubmitting = ref(false);
-const cart = ref<Array<{
-  id: string;
-  productId: string;
-  name: string;
-  image: string;
-  quantity: number;
-  addOnIds: string[];
-  addOnLabels: string[];
-  addOnTotal: number;
-  notes: string;
-  unitPrice: number;
-  total: number;
-}>>([]);
+
+const cart = ref<
+  Array<{
+    id: string;
+    productId: string;
+    name: string;
+    image: string;
+    unitPrice: number;
+    quantity: number;
+    addOnIds: string[];
+    addOnLabels: string[];
+    notes: string;
+    total: number;
+  }>
+>([]);
+
+onMounted(async () => {
+  const saved = localStorage.getItem(CART_STORAGE_KEY);
+  if (saved) {
+    try {
+      cart.value = JSON.parse(saved);
+    } catch {
+      localStorage.removeItem(CART_STORAGE_KEY);
+    }
+  }
+
+  // Fetch from D1
+  try {
+    const [catRes, prodRes, setRes] = await Promise.all([
+      fetch("/api/categories"),
+      fetch("/api/products"),
+      fetch("/api/settings"),
+    ]);
+
+    const { categories: d1Cats } = await catRes.json();
+    const { products: d1Prods } = await prodRes.json();
+    const { isOpen } = await setRes.json();
+    
+    shopOpen.value = isOpen;
+
+    // Map categories with labels from copy
+    categories.value = [
+      { id: "all", label: copy.categories.all },
+      ...d1Cats.map((cat: any) => ({
+        id: cat.id,
+        label: (copy.categories as any)[cat.id] || cat.name,
+      })),
+    ];
+
+    // Localize products
+    products.value = d1Prods.map((p: any) => {
+      let description = p.description;
+      try {
+        const descObj = JSON.parse(p.description);
+        description = descObj[lang] || descObj.en || p.description;
+      } catch {
+        /* Not JSON */
+      }
+
+      const metadata = JSON.parse(p.metadataJson || "{}");
+      const addOns = (metadata.addOns || []).map((ao: any) => ({
+        ...ao,
+        label: ao.label[lang] || ao.label.en || ao.label,
+      }));
+
+      return {
+        id: p.id,
+        name: p.name,
+        category: p.categoryId,
+        description,
+        price: p.price,
+        image: p.imageUrl,
+        isAvailable: p.isAvailable && (p.inventoryCount === null || p.inventoryCount > 0),
+        tags: (metadata.tags || []).map((t: string) => (copy.tags as any)[t] || t),
+        addOns,
+      };
+    });
+
+    products.value = products.value.filter(p => p.isAvailable);
+
+    dynamicLoaded.value = true;
+  } catch (err) {
+    console.error("Failed to load shop data:", err);
+  }
+});
 
 const checkout = reactive({
   fulfillment: "delivery",
+  paymentMethod: "card",
+  name: "",
+  phone: "",
+  address: "",
 });
 
 const filteredProducts = computed(() =>
   activeCategory.value === "all"
-    ? products
-    : products.filter((p) => p.category === activeCategory.value),
+    ? products.value
+    : products.value.filter((p) => p.category === activeCategory.value),
 );
 const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.total, 0));
 const deliveryFee = computed(() => (cart.value.length ? (checkout.fulfillment === "pickup" ? 0 : 4.9) : 0));
 const grandTotal = computed(() => subtotal.value + deliveryFee.value);
 const itemCount = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0));
-const canPlaceOrder = computed(() => itemCount.value > 0);
+const canPlaceOrder = computed(() => {
+  if (itemCount.value === 0) return false;
+  if (checkout.paymentMethod === "cash") {
+    if (!checkout.name.trim() || !checkout.phone.trim()) return false;
+    if (checkout.fulfillment === "delivery" && !checkout.address.trim()) return false;
+  }
+  return true;
+});
 const successTitle = computed(() =>
   checkout.fulfillment === "pickup" ? "Pickup Confirmed" : "Order Confirmed",
 );
@@ -357,7 +495,11 @@ function removeItem(id: string) {
 
 function placeOrder() {
   if (!canPlaceOrder.value) return;
-  void beginStripeCheckout();
+  if (checkout.paymentMethod === "card") {
+    void beginStripeCheckout();
+  } else {
+    void placeCashOrder();
+  }
 }
 
 function handleOpenCart() {
@@ -381,7 +523,10 @@ async function beginStripeCheckout() {
       body: JSON.stringify({
         lang,
         cart: cart.value,
-        checkout,
+        checkout: {
+          ...checkout,
+          customerName: checkout.name, // compatibility with normalizeCreateOrderPayload
+        },
       }),
     });
 
@@ -404,6 +549,45 @@ async function beginStripeCheckout() {
       error instanceof Error
         ? error.message
         : "Unable to start Stripe checkout. Check your Cloudflare Workers Stripe variables.";
+  } finally {
+    isSubmitting.value = false;
+  }
+}
+
+async function placeCashOrder() {
+  isSubmitting.value = true;
+  paymentError.value = "";
+
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lang,
+        cart: cart.value,
+        checkout: {
+          ...checkout,
+          customerName: checkout.name,
+        },
+        paymentMethod: "cash",
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to place cash order.");
+    }
+
+    cart.value = [];
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(CART_STORAGE_KEY);
+      window.location.assign(`/checkout/success?order=${data.orderNo}`);
+    }
+  } catch (error) {
+    paymentError.value = error instanceof Error ? error.message : "Unable to place cash order.";
   } finally {
     isSubmitting.value = false;
   }
@@ -598,6 +782,64 @@ textarea {
 .secondary-button {
   min-height: 48px;
   border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+.primary-button {
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  color: #160f08;
+}
+.secondary-button {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text);
+}
+.checkout-form {
+  margin-top: 16px;
+  padding: 20px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+.form-grid label {
+  display: grid;
+  gap: 8px;
+}
+input,
+textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--gold-soft);
+  background: rgba(255,255,255,.08);
+}
+.error-note {
+  margin-top: 12px;
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.checkout-box {
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   font-weight: 700;
@@ -1216,5 +1458,49 @@ textarea {
   .mobile-cart {
     display: flex;
   }
+}
+.menu-loading {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+.spinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid rgba(241,182,107,.1);
+  border-top-color: var(--gold-soft);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.closed-notice {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 80px 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  text-align: center;
+  border-radius: 40px;
+}
+.closed-icon {
+  font-size: 64px;
+}
+.closed-copy h3 {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  color: var(--gold-soft);
+}
+.closed-copy p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 400px;
 }
 </style>
