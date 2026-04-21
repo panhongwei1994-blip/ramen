@@ -2,6 +2,16 @@
   "name": "ramen",
   "compatibility_date": "2026-04-10",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {
+    "PUBLIC_SITE_URL": "https://ramen.hisora.cc"
+  },
+  "routes": [
+    {
+      "pattern": "ramen.hisora.cc",
+      "custom_domain": true
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

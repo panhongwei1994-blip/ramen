@@ -9,7 +9,7 @@ interface Props {
 const lang = normalizeLocale(Astro.props.lang);
 const content = getContent(lang);
 const localeUrls = getLocaleUrls(lang);
-const siteUrl = Astro.site ?? new URL("https://sora-site.panhongwei1994.workers.dev");
+const siteUrl = Astro.site ?? new URL("https://ramen.hisora.cc");
 const canonicalPath = lang === "en" ? "/" : `/${lang}`;
 const canonical = new URL(canonicalPath, siteUrl).toString();
 const socialImage = new URL("/ramen/hero-poster.png", siteUrl).toString();
