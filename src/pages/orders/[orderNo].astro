@@ -43,9 +43,15 @@ const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` :
           <div class="status-steps">
             {[
               { key: 'pending_payment', icon: 'M19 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-5 9l3-3m0 0l-3-3m3 3H9', label: 'Payment' },
-              { key: 'paid_waiting_accept', icon: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.3 13a1.94 1.94 0 0 0 3.4 0', label: 'Confim' },
+              { key: 'paid_waiting_accept', icon: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.3 13a1.94 1.94 0 0 0 3.4 0', label: 'Confirm' },
               { key: 'cooking', icon: 'M12 21a9 9 0 0 1 0-18c2 0 3.5.5 5 1.5M12 7l3 3m-3 7l-3-3m10-7v10', label: 'Cooking' },
-              { key: 'delivering', icon: 'M5 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-7-7h4l2 3v3H2v-3l2-3h4', label: 'Delivery' },
+              { 
+                key: 'delivering', 
+                icon: order.fulfillment === 'pickup' 
+                  ? 'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6z M3 6h18 M16 10a4 4 0 0 1-8 0' 
+                  : 'M5 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-7-7h4l2 3v3H2v-3l2-3h4', 
+                label: order.fulfillment === 'pickup' ? 'Ready' : 'Delivery' 
+              },
               { key: 'completed', icon: 'M21 8l-2-2H5L3 8v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8zM12 13l4 4m0-4l-4 4', label: 'Done' }
             ].map((step, idx, arr) => {
               const states = ['pending_payment', 'paid_waiting_accept', 'accepted', 'cooking', 'delivering', 'completed'];
@@ -69,8 +75,18 @@ const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` :
           </div>
           
           <div class="status-announcement">
-            <h3>{statusLabel(order.orderStatus)}</h3>
-            <p>{order.paymentStatus === 'paid' ? 'Your order is being handled by our team.' : 'Please complete the payment to start processing.'}</p>
+            <h3>
+              {order.orderStatus === 'delivering' && order.fulfillment === 'pickup' 
+                ? 'Ready for Pickup' 
+                : statusLabel(order.orderStatus)}
+            </h3>
+            <p>
+              {order.orderStatus === 'delivering' && order.fulfillment === 'pickup'
+                ? 'Your order is ready! Please head to the store for collection.'
+                : order.paymentStatus === 'paid' 
+                  ? 'Your order is being handled by our team.' 
+                  : 'Please complete the payment to start processing.'}
+            </p>
           </div>
         </section>
 
