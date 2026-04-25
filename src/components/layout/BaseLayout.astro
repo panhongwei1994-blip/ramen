@@ -127,7 +127,9 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         const confirmNode = document.querySelector(".install-confirm");
 
         if (titleNode) {
-          titleNode.textContent = isChinese ? `安装 ${brandName}` : `Install ${brandName}`;
+          titleNode.textContent = ios
+            ? (isChinese ? `将 ${brandName} 添加到手机屏幕` : `Add ${brandName} to your Home Screen`)
+            : (isChinese ? `安装 ${brandName}` : `Install ${brandName}`);
         }
 
         if (confirmNode instanceof HTMLButtonElement) {
