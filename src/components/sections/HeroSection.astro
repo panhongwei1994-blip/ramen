@@ -135,9 +135,11 @@ const content = getContent(lang);
     min-width: 176px;
   }
   .hero-visual {
-    display: block;
+    display: flex;
+    justify-content: center;
   }
   .hero-poster {
+    width: min(100%, 520px);
     overflow: hidden;
     aspect-ratio: 1 / 1;
     max-height: min(72vh, 680px);
@@ -198,6 +200,11 @@ const content = getContent(lang);
       grid-template-columns: 1fr;
       min-height: auto;
     }
+    .hero-copy,
+    .hero-visual {
+      justify-self: center;
+      width: 100%;
+    }
     .hero-proof {
       grid-template-columns: 1fr 1fr;
     }
@@ -224,9 +231,17 @@ const content = getContent(lang);
     .hero-proof {
       grid-template-columns: 1fr;
     }
+    .hero-visual {
+      margin-top: 6px;
+    }
     .hero-poster {
-      max-height: 46svh;
+      width: min(100%, 380px);
+      aspect-ratio: 0.92 / 1;
+      max-height: 43svh;
       border-radius: 24px;
+    }
+    .hero-poster img {
+      object-position: center center;
     }
   }
 </style>

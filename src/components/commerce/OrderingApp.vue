@@ -80,6 +80,16 @@
           height="768"
         />
         <div class="modal-copy">
+          <p class="modal-kicker">
+            <span class="modal-kicker-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 8h16" />
+                <path d="M6 12h12" />
+                <path d="M8 16h8" />
+              </svg>
+            </span>
+            {{ copy.customize }}
+          </p>
           <div class="product-header">
             <div>
               <h3>{{ selected.name }}</h3>
@@ -124,7 +134,16 @@
             <small>{{ copy.total }}</small>
             <strong>{{ format(modalTotal) }}</strong>
           </div>
-          <button class="primary-button" type="button" @click="addConfiguredItem">{{ copy.addToCart }}</button>
+          <button class="primary-button compact-button" type="button" @click="addConfiguredItem">
+            <span class="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="20" r="1" />
+                <circle cx="18" cy="20" r="1" />
+                <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H7" />
+              </svg>
+            </span>
+            {{ copy.addToCart }}
+          </button>
         </div>
       </div>
     </div>
@@ -134,9 +153,18 @@
         <button class="close-button" type="button" @click="cartOpen = false">×</button>
         <div class="cart-body">
           <div class="cart-scroll">
-            <div>
+            <div class="cart-heading">
               <p class="eyebrow-inner">{{ copy.checkout }}</p>
-              <h3>{{ copy.cartTitle }}</h3>
+              <h3>
+                <span class="heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="20" r="1" />
+                    <circle cx="18" cy="20" r="1" />
+                    <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H7" />
+                  </svg>
+                </span>
+                {{ copy.cartTitle }}
+              </h3>
             </div>
 
             <div v-if="!cart.length" class="empty-state">{{ copy.emptyCart }}</div>
@@ -263,6 +291,12 @@
 
               <div class="checkout-actions">
                 <button class="primary-button checkout-submit" type="button" :disabled="!canPlaceOrder || isSubmitting" @click="placeOrder">
+                  <span class="button-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </span>
                   {{ isSubmitting ? (checkout.paymentMethod === 'card' ? "Redirecting to Stripe..." : "Placing Order...") : copy.placeOrder }}
                 </button>
               </div>
@@ -283,6 +317,11 @@
     <div v-if="orderPlaced" class="overlay success-overlay" @click.self="closeSuccessModal">
       <div class="success-modal card">
         <button class="close-button" type="button" @click="closeSuccessModal">×</button>
+        <div class="success-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m5 13 4 4L19 7" />
+          </svg>
+        </div>
         <p class="eyebrow-inner">{{ copy.checkout }}</p>
         <h3>{{ successTitle }}</h3>
         <div class="order-code-box">
@@ -1004,32 +1043,65 @@ textarea:focus {
 }
 .modal {
   position: relative;
-  width: min(860px, 100%);
-  max-height: min(92vh, 900px);
-  padding: 18px;
+  width: min(760px, 100%);
+  max-height: min(90vh, 820px);
+  padding: 14px;
   overflow: auto;
 }
 .modal-image {
   width: 100%;
-  height: 360px;
+  height: 300px;
   object-fit: cover;
-  border-radius: 24px;
+  border-radius: 18px;
 }
 .modal-copy {
   display: grid;
-  gap: 20px;
-  padding: 20px 4px 120px;
+  gap: 14px;
+  padding: 14px 2px 96px;
+}
+.modal-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: rgba(244,213,154,.82);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.modal-kicker-icon,
+.heading-icon,
+.button-icon,
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-kicker-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(212,165,74,.14);
+}
+.modal-kicker-icon svg,
+.button-icon svg,
+.heading-icon svg,
+.success-icon svg {
+  width: 14px;
+  height: 14px;
 }
 .sticky-cta {
   position: sticky;
   bottom: 0;
-  margin-top: -84px;
+  margin-top: -68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
   background: rgba(7,8,12,.94);
   border: 1px solid rgba(255,255,255,.08);
   z-index: 3;
@@ -1042,36 +1114,49 @@ textarea:focus {
   color: var(--muted);
   margin-bottom: 6px;
 }
+.sticky-cta strong {
+  font-size: 1rem;
+}
 .close-button {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
   z-index: 2;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.08);
   color: var(--text);
+  font-size: 1rem;
 }
 .success-modal {
   position: relative;
-  width: min(460px, 100%);
-  padding: 28px;
+  width: min(360px, 100%);
+  padding: 18px;
+}
+.success-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(212,165,74,.14);
+  color: var(--gold-soft);
 }
 .success-modal h3 {
-  margin: 10px 0 0;
-  font-size: 2rem;
+  margin: 8px 0 0;
+  font-size: 1.34rem;
+  line-height: 1.05;
 }
 .success-modal-copy {
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.55;
+  font-size: .9rem;
 }
 .order-code-box {
-  margin-top: 18px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(212,165,74,.24);
   background: rgba(212,165,74,.08);
 }
@@ -1088,38 +1173,39 @@ textarea:focus {
 .order-code-box strong {
   display: block;
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.2rem;
-  letter-spacing: .18em;
+  font-size: 1rem;
+  letter-spacing: .14em;
 }
 .error-note {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: rgba(255,124,124,.12);
   color: #ffc5c5;
+  font-size: 12px;
 }
 .success-modal-button {
   width: 100%;
-  margin-top: 22px;
+  margin-top: 14px;
 }
 .field-group {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .field-group label,
 .form-grid label span {
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: .18em;
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: rgba(244,213,154,.82);
 }
 .quantity-control {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px;
+  gap: 8px;
+  padding: 4px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
@@ -1129,8 +1215,8 @@ textarea:focus {
   transform-origin: left center;
 }
 .quantity-control button {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   border: 0;
   background: rgba(255,255,255,.07);
@@ -1146,14 +1232,15 @@ textarea:focus {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  min-height: 52px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  gap: 4px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
   color: var(--text);
   text-align: center;
+  font-size: 12px;
 }
 .addon-chip.active {
   background: rgba(212,165,74,.14);
@@ -1163,23 +1250,23 @@ textarea,
 input,
 select {
   width: 100%;
-  min-height: 52px;
-  padding: 0 14px;
-  border-radius: 16px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
   color: var(--text);
 }
 textarea {
-  min-height: 120px;
-  padding-top: 14px;
+  min-height: 92px;
+  padding-top: 12px;
   resize: vertical;
 }
 .cart-panel {
   position: relative;
-  width: min(480px, 100%);
+  width: min(430px, 100%);
   height: 100vh;
-  padding: 18px;
+  padding: 14px;
   border-radius: 28px 0 0 28px;
 }
 .cart-body {
@@ -1189,39 +1276,45 @@ textarea {
 }
 .cart-scroll {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   min-height: 100%;
+}
+.cart-heading h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .cart-body h3 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.36rem;
 }
 .empty-state {
-  padding: 18px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: 14px;
   border: 1px dashed rgba(255,255,255,.14);
   color: var(--muted);
+  font-size: .9rem;
 }
 .cart-items {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   min-height: min(54vh, 560px);
   align-content: start;
 }
 .cart-item {
   display: grid;
   grid-template-columns: 82px 1fr;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
 }
 .cart-item img {
-  width: 82px;
-  height: 82px;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: 14px;
 }
 .cart-item-head,
 .totals > div {
@@ -1232,25 +1325,27 @@ textarea {
 .cart-item p,
 .totals {
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.45;
+  font-size: .86rem;
 }
 .cart-item-actions {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .text-button {
   border: 0;
   background: transparent;
   color: var(--danger);
+  font-size: 12px;
 }
 .totals {
   display: grid;
-  gap: 8px;
-  padding: 18px;
-  border-radius: 20px;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.08);
   background:
     linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)),
@@ -1265,10 +1360,10 @@ textarea {
 }
 .checkout-box {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-  margin-top: 12px;
-  border-radius: 20px;
+  gap: 12px;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at top right, rgba(212,165,74,.08), transparent 28%),
     rgba(255,255,255,.04);
@@ -1288,9 +1383,9 @@ textarea {
 }
 .choice-group span {
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: .18em;
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: rgba(244,213,154,.82);
 }
@@ -1304,15 +1399,15 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 52px;
-  border-radius: 16px;
+  min-height: 44px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 .choice-icon {
@@ -1346,27 +1441,28 @@ textarea {
 }
 .checkout-progress {
   display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 12px;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
   align-items: start;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(212,165,74,.24);
   background: rgba(212,165,74,.08);
   color: var(--text);
 }
 .checkout-progress strong {
   display: block;
-  font-size: 0.95rem;
+  font-size: 0.84rem;
 }
 .checkout-progress p {
   margin: 4px 0 0;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.4;
+  font-size: 0.8rem;
 }
 .checkout-progress-spinner {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   border: 2px solid rgba(241,182,107,.28);
   border-top-color: var(--gold-soft);
@@ -1398,6 +1494,12 @@ textarea {
 .cart-item {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
 }
+.compact-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 12px;
+}
 
 @media (max-width: 1080px) {
   .category-row {
@@ -1426,14 +1528,16 @@ textarea {
     height: 260px;
   }
   .modal-image {
-    height: 240px;
+    height: 208px;
   }
   .modal-copy {
-    padding-bottom: 20px;
+    padding-bottom: 14px;
   }
   .sticky-cta {
     position: static;
     margin-top: 0;
+    flex-direction: column;
+    align-items: stretch;
   }
   .embedded-modal {
     position: fixed;
@@ -1475,7 +1579,7 @@ textarea {
   }
   .cart-panel {
     width: 100%;
-    height: 75vh;
+    height: 72vh;
     margin-top: auto;
     border-radius: 28px 28px 0 0;
   }
@@ -1484,6 +1588,10 @@ textarea {
   }
   .mobile-cart {
     display: flex;
+  }
+  .success-modal {
+    width: min(340px, 100%);
+    padding: 16px;
   }
 }
 .menu-loading {
