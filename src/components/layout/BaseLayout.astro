@@ -121,6 +121,7 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         if (!(modal instanceof HTMLElement) || !(copyNode instanceof HTMLElement) || !(stepsNode instanceof HTMLElement)) return;
 
         const ios = variant === "ios";
+        const isNativeAvailable = !!deferredInstallPrompt;
         modal.dataset.variant = variant;
         const titleNode = document.getElementById("install-title");
         const confirmNode = document.querySelector(".install-confirm");
@@ -132,16 +133,20 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         if (confirmNode instanceof HTMLButtonElement) {
           confirmNode.textContent = ios
             ? (isChinese ? "不再提醒" : "Do not remind me")
-            : (isChinese ? "立即安装" : "Install Now");
+            : (isNativeAvailable ? (isChinese ? "立即安装" : "Install Now") : (isChinese ? "我知道了" : "Got it"));
         }
 
-        copyNode.innerHTML = ios
-          ? (isChinese
+        if (ios) {
+          copyNode.innerHTML = isChinese
             ? `点按浏览器中的 <span class="install-highlight">分享</span> 或 <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> <span class="install-highlight">分享图标</span>，在菜单中选择“添加到主屏幕”。<br><small class="install-hint">不同浏览器上，分享入口可能在底部、顶部或菜单内。</small>`
-            : `Tap <span class="install-highlight">Share</span> or the <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> icon, then select <span class="install-highlight">Add to Home Screen</span>.`)
-          : (isChinese
-            ? `将 ${brandName} 添加到主屏幕，方便下次快速下单。`
-            : `Add ${brandName} to your home screen for faster access to the menu.`);
+            : `Tap <span class="install-highlight">Share</span> or the <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> icon, then select <span class="install-highlight">Add to Home Screen</span>.`;
+        } else {
+          copyNode.innerHTML = isNativeAvailable
+            ? (isChinese ? `将 ${brandName} 添加到主屏幕，方便下次快速下单。` : `Add ${brandName} to your home screen for faster access to the menu.`)
+            : (isChinese 
+               ? `点按浏览器菜单（通常是三个点 <span class="install-highlight">⋮</span>），选择 <span class="install-highlight">“安装应用”</span> 或 <span class="install-highlight">“添加到主屏幕”</span>。` 
+               : `Tap the browser menu (<span class="install-highlight">⋮</span>), then select <span class="install-highlight">Install App</span> or <span class="install-highlight">Add to Home Screen</span>.`);
+        }
         
         stepsNode.hidden = true;
         modal.hidden = false;
