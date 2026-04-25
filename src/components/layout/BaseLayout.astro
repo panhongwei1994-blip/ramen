@@ -134,22 +134,14 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
             ? (isChinese ? "不再提醒" : "Do not remind me")
             : (isChinese ? "关闭" : "Close");
         }
-        copyNode.textContent = ios
+        copyNode.innerHTML = ios
           ? (isChinese
-            ? "点按浏览器里的分享按钮，在菜单中选择“添加到主屏幕”。不同浏览器的分享入口可能在底部、顶部或菜单内。"
-            : `Tap the browser Share button, then choose Add to Home Screen. The share control may sit at the bottom, top, or inside the menu depending on your browser.`)
+            ? `点按浏览器中的 <span class="install-highlight">分享</span> 或 <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> <span class="install-highlight">分享图标</span>，在菜单中选择“添加到主屏幕”。<br><small class="install-hint">不同浏览器上，分享入口可能在底部、顶部或菜单内。</small>`
+            : `Tap <span class="install-highlight">Share</span> or the <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> icon, then select <span class="install-highlight">Add to Home Screen</span>.`)
           : (isChinese
             ? `将 ${brandName} 添加到主屏幕，方便下次快速打开。`
             : `Install ${brandName} for faster access from your device home screen.`);
-        stepsNode.innerHTML = ios
-          ? `
-            <div class="install-step"><span class="install-step-number">↗</span><p>${isChinese ? "点按浏览器中的“分享”或分享图标。" : "Tap Share or the share icon in your browser."}</p></div>
-            <div class="install-step"><span class="install-step-number">+</span><p>${isChinese ? "在菜单中选择“添加到主屏幕”。" : "Choose Add to Home Screen from the menu."}</p></div>
-          `
-          : `
-            <div class="install-step"><span class="install-step-number">≡</span><p>${isChinese ? "打开浏览器菜单。" : "Open your browser menu."}</p></div>
-            <div class="install-step"><span class="install-step-number">+</span><p>${isChinese ? "选择“安装应用”或“添加到主屏幕”。" : "Choose Install App or Add to Home Screen."}</p></div>
-          `;
+        stepsNode.hidden = ios;
         modal.hidden = false;
         document.documentElement.style.overflow = "hidden";
       };
@@ -353,15 +345,14 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     top: auto;
     bottom: calc(16px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
-    width: min(520px, calc(100vw - 20px));
-    padding: 12px 14px 12px;
-    border-radius: 20px;
-    background:
-      linear-gradient(180deg, rgba(36, 44, 60, .98), rgba(25, 31, 44, .98)),
-      #1f2634;
-    border: 1px solid rgba(255,255,255,.12);
+    width: min(520px, calc(100vw - 24px));
+    padding: 16px 20px 18px;
+    border-radius: 24px;
+    background: rgba(30, 38, 52, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     text-align: left;
-    box-shadow: 0 24px 60px rgba(0,0,0,.42);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   }
   .install-modal[data-variant="ios"] .install-logo,
   .install-modal[data-variant="ios"] .eyebrow {
@@ -370,55 +361,58 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
   .install-modal[data-variant="ios"] .install-close {
     border: 0;
     background: transparent;
-    color: rgba(235, 240, 248, .72);
-    font-size: 20px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 24px;
+    width: auto;
+    height: auto;
+    top: 14px;
+    right: 18px;
   }
   .install-modal[data-variant="ios"] h3 {
     margin: 0;
-    color: #f8fafc;
+    color: #fff;
     font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 0.9rem;
-    letter-spacing: 0;
-    line-height: 1.22;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .install-modal[data-variant="ios"] .install-copy {
-    margin: 6px 0 0;
-    color: rgba(226, 232, 240, .82);
-    font-size: 0.78rem;
-    line-height: 1.4;
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    line-height: 1.5;
   }
-  .install-modal[data-variant="ios"] .install-steps {
-    gap: 4px;
+  .install-highlight {
+    color: #60a5fa;
+    font-weight: 600;
+  }
+  .inline-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+    color: #60a5fa;
+  }
+  .install-hint {
+    display: block;
     margin-top: 8px;
-  }
-  .install-modal[data-variant="ios"] .install-step {
-    grid-template-columns: 22px 1fr;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-  .install-modal[data-variant="ios"] .install-step-number {
-    background: rgba(96, 165, 250, .16);
-    color: #93c5fd;
-    width: 18px;
-    height: 18px;
-    font-size: 9px;
-  }
-  .install-modal[data-variant="ios"] .install-step p {
-    color: rgba(226, 232, 240, .9);
+    color: rgba(255, 255, 255, 0.4);
     font-size: 0.75rem;
-    line-height: 1.34;
   }
   .install-modal[data-variant="ios"] .install-confirm {
-    min-height: 40px;
-    margin-top: 10px;
-    border: 1px solid rgba(148, 163, 184, .28);
-    border-radius: 12px;
-    background: transparent;
-    color: #f8fafc;
+    min-height: 48px;
+    margin-top: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
     font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 0.86rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    transition: background 0.2s;
+  }
+  .install-modal[data-variant="ios"] .install-confirm:active {
+    background: rgba(255, 255, 255, 0.1);
   }
   .install-close {
     position: absolute;
