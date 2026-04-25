@@ -124,36 +124,45 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         modal.dataset.variant = variant;
         const titleNode = document.getElementById("install-title");
         const confirmNode = document.querySelector(".install-confirm");
+
         if (titleNode) {
-          titleNode.textContent = ios
-            ? (isChinese ? `将 ${brandName} 添加到手机屏幕` : `Add ${brandName} to your Home Screen`)
-            : (isChinese ? `安装 ${brandName}` : `Install ${brandName}`);
+          titleNode.textContent = isChinese ? `安装 ${brandName}` : `Install ${brandName}`;
         }
+
         if (confirmNode instanceof HTMLButtonElement) {
           confirmNode.textContent = ios
             ? (isChinese ? "不再提醒" : "Do not remind me")
-            : (isChinese ? "关闭" : "Close");
+            : (isChinese ? "立即安装" : "Install Now");
         }
+
         copyNode.innerHTML = ios
           ? (isChinese
             ? `点按浏览器中的 <span class="install-highlight">分享</span> 或 <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> <span class="install-highlight">分享图标</span>，在菜单中选择“添加到主屏幕”。<br><small class="install-hint">不同浏览器上，分享入口可能在底部、顶部或菜单内。</small>`
             : `Tap <span class="install-highlight">Share</span> or the <svg class="inline-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> icon, then select <span class="install-highlight">Add to Home Screen</span>.`)
           : (isChinese
-            ? `将 ${brandName} 添加到主屏幕，方便下次快速打开。`
-            : `Install ${brandName} for faster access from your device home screen.`);
-        stepsNode.hidden = ios;
+            ? `将 ${brandName} 添加到主屏幕，方便下次快速下单。`
+            : `Add ${brandName} to your home screen for faster access to the menu.`);
+        
+        stepsNode.hidden = true;
         modal.hidden = false;
         document.documentElement.style.overflow = "hidden";
       };
 
-      const closeInstallModal = () => {
+      const closeInstallModal = (isAction = false) => {
         if (!(modal instanceof HTMLElement)) return;
-        if (modal.dataset.variant === "ios") {
+        
+        // Android one-tap logic
+        if (isAction && modal.dataset.variant !== "ios" && deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(() => {
+            deferredInstallPrompt = null;
+          }).catch(() => {});
+        }
+
+        if (modal.dataset.variant === "ios" || isAction) {
           try {
             window.localStorage.setItem(installDismissedKey, "true");
-          } catch {
-            // Ignore storage access issues.
-          }
+          } catch {}
         }
         modal.hidden = true;
         document.documentElement.style.overflow = "";
@@ -188,7 +197,8 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         const closeTrigger = event.target instanceof Element ? event.target.closest("[data-install-close]") : null;
         if (!closeTrigger) return;
         event.preventDefault();
-        closeInstallModal();
+        const isAction = closeTrigger.classList.contains("install-confirm");
+        closeInstallModal(isAction);
       });
 
       window.addEventListener("load", () => {
@@ -325,24 +335,12 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
   .install-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(5, 6, 10, .78);
-    backdrop-filter: blur(12px);
+    background: rgba(5, 6, 10, .28);
+    backdrop-filter: blur(4px);
   }
   .install-dialog {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(420px, calc(100vw - 24px));
-    padding: 18px;
-    text-align: center;
-  }
-  .install-modal[data-variant="ios"] .install-backdrop {
-    background: rgba(15, 23, 42, .26);
-    backdrop-filter: blur(2px);
-  }
-  .install-modal[data-variant="ios"] .install-dialog {
-    top: auto;
     bottom: calc(16px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     width: min(520px, calc(100vw - 24px));
@@ -354,21 +352,23 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     text-align: left;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   }
-  .install-modal[data-variant="ios"] .install-logo,
-  .install-modal[data-variant="ios"] .eyebrow {
+  .install-logo,
+  .eyebrow {
     display: none;
   }
-  .install-modal[data-variant="ios"] .install-close {
+  .install-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    width: auto;
+    height: auto;
     border: 0;
     background: transparent;
     color: rgba(255, 255, 255, 0.5);
     font-size: 24px;
-    width: auto;
-    height: auto;
-    top: 14px;
-    right: 18px;
+    z-index: 10;
   }
-  .install-modal[data-variant="ios"] h3 {
+  .install-dialog h3 {
     margin: 0;
     color: #fff;
     font-family: ui-sans-serif, system-ui, sans-serif;
@@ -376,7 +376,7 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     font-weight: 600;
     letter-spacing: -0.01em;
   }
-  .install-modal[data-variant="ios"] .install-copy {
+  .install-copy {
     margin: 10px 0 0;
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.85rem;
@@ -398,7 +398,8 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     color: rgba(255, 255, 255, 0.4);
     font-size: 0.75rem;
   }
-  .install-modal[data-variant="ios"] .install-confirm {
+  .install-confirm {
+    width: 100%;
     min-height: 48px;
     margin-top: 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -411,98 +412,8 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     letter-spacing: 0;
     transition: background 0.2s;
   }
-  .install-modal[data-variant="ios"] .install-confirm:active {
+  .install-confirm:active {
     background: rgba(255, 255, 255, 0.1);
-  }
-  .install-close {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 34px;
-    height: 34px;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 999px;
-    background: rgba(255,255,255,.05);
-    color: var(--text);
-  }
-  .install-logo {
-    width: 64px;
-    height: 64px;
-    border-radius: 18px;
-    object-fit: cover;
-    border: 1px solid rgba(212,165,74,.28);
-    box-shadow: 0 10px 24px rgba(212,165,74,.2);
-  }
-  .install-dialog h3 {
-    margin: 0;
-    font-size: 1.18rem;
-    line-height: 1.05;
-  }
-  .install-title-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .install-title-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 8px;
-    background: rgba(212,165,74,.14);
-    color: var(--gold-soft);
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .install-copy {
-    margin: 8px 0 0;
-    color: var(--muted);
-    line-height: 1.42;
-    font-size: .84rem;
-  }
-  .install-steps {
-    display: grid;
-    gap: 6px;
-    margin-top: 10px;
-    text-align: left;
-  }
-  .install-step {
-    display: grid;
-    grid-template-columns: 28px 1fr;
-    gap: 10px;
-    align-items: start;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.08);
-  }
-  .install-step-number {
-    display: inline-grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    background: rgba(212,165,74,.14);
-    color: var(--gold-soft);
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-  }
-  .install-step p {
-    margin: 2px 0 0;
-    color: var(--text);
-    line-height: 1.38;
-    font-size: .8rem;
-  }
-  .install-confirm {
-    width: 100%;
-    margin-top: 10px;
-    min-height: 40px;
-    font-size: 11px;
-    letter-spacing: .12em;
   }
   @media (max-width: 860px) {
     .header-shell {
