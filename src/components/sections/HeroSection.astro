@@ -34,7 +34,16 @@ const content = getContent(lang);
 
     <div class="hero-visual">
       <div class="hero-poster card">
-        <img src="/ramen/hero-poster.png" alt={content.brand} loading="eager" />
+        <img
+          src="/ramen/hero-poster-768.jpg"
+          srcset="/ramen/hero-poster-768.jpg 768w, /ramen/hero-poster.png 1024w"
+          sizes="(max-width: 900px) calc(100vw - 32px), 44vw"
+          alt="Steaming bowl of Tokyo-style ramen with chashu, egg, and scallions"
+          loading="eager"
+          fetchpriority="high"
+          width="768"
+          height="768"
+        />
       </div>
     </div>
   </div>

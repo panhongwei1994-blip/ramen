@@ -15,11 +15,6 @@ const footerMenuItems = [
     href: "#order-menu",
     detail: content.trust[3],
   },
-  {
-    label: "Our Story",
-    href: "#story",
-    detail: content.footerMeta[0],
-  },
 ];
 ---
 
@@ -27,7 +22,7 @@ const footerMenuItems = [
   <div class="container footer-top card">
     <div class="footer-brand">
       <div class="brand-row">
-        <img src="/ramen/logo.png" alt={`${content.brand} Logo`} class="brand-logo" />
+        <img src="/ramen/logo-320.jpg" alt={`${content.brand} logo`} class="brand-logo" width="44" height="44" />
         <p class="eyebrow">{content.brand}</p>
       </div>
       <h2>{content.footerHeading}</h2>
@@ -72,7 +67,6 @@ const footerMenuItems = [
     <p>© 2026 {content.brand}</p>
     <div>
       <a href="#order-menu">Menu</a>
-      <a href="#story">Story</a>
       <a href="#reviews">Reviews</a>
     </div>
   </div>

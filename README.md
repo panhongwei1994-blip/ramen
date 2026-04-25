@@ -35,6 +35,8 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 PUBLIC_SITE_URL=http://localhost:4322
+ADMIN_USERNAME=staff
+ADMIN_PASSWORD=change-me
 ```
 
 For Cloudflare, set the Stripe values as Worker secrets and bind a D1 database as `DB`. Keeping `ORDERS` bound is still supported for compatibility and rollback safety.
@@ -102,9 +104,10 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a D1 database a
 5. Add secrets:
 
    ```bash
-   wrangler secret put STRIPE_SECRET_KEY
-   wrangler secret put STRIPE_PUBLISHABLE_KEY
-   wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put STRIPE_SECRET_KEY
+wrangler secret put STRIPE_PUBLISHABLE_KEY
+wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put ADMIN_PASSWORD
    ```
 
 6. Set `PUBLIC_SITE_URL` to the deployed origin.
@@ -125,9 +128,13 @@ For Cloudflare, set the Stripe values as Worker secrets and bind a D1 database a
 - checkout return page: `/checkout/success?order=:orderNo`
 - merchant page: `/admin/orders`
 
+## Admin access
+
+`/admin/*` and `/api/admin/*` are protected with HTTP Basic Auth. `ADMIN_USERNAME` defaults to `staff`; `ADMIN_PASSWORD` must be configured as a secret in production.
+
 ## Known limitations
 
-- Admin pages are intentionally unauthenticated in this MVP.
+- Admin auth is intentionally simple HTTP Basic Auth for this MVP. Replace it with role-based staff accounts before running a real restaurant operation at scale.
 - D1 gives the order flow structured persistence, but the current migration still keeps KV compatibility code until the cutover is fully complete.
 - The webhook idempotency layer is practical for MVP use, but it still relies on application logic rather than a full unique-constraint reconciliation workflow.
 - Product data is seeded from source code rather than a merchant CMS.

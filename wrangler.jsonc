@@ -4,7 +4,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "vars": {
-    "PUBLIC_SITE_URL": "https://ramen.hisora.cc"
+    "PUBLIC_SITE_URL": "https://ramen.hisora.cc",
+    "ADMIN_USERNAME": "staff"
   },
   "routes": [
     {

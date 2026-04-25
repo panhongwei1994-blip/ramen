@@ -295,7 +295,7 @@ type OrderLogRow = {
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["paid_waiting_accept", "cancelled"],
   paid_waiting_accept: ["accepted", "cancelled", "refunded"],
-  accepted: ["cooking"],
+  accepted: ["cooking", "cancelled"],
   cooking: ["delivering"],
   delivering: ["completed"],
   completed: [],
@@ -1108,15 +1108,6 @@ async function recalculateOrderItems(
     const product = await getProductFromD1(item.productId, runtimeEnv);
     if (!product || !product.isAvailable) {
       throw new Error(`Product unavailable: ${item.productId}`);
-    }
-
-    // Parse description and metadata (contains add-ons)
-    let descriptionStr = product.description;
-    try {
-      const descObj = JSON.parse(product.description);
-      descriptionStr = descObj[locale] || descObj.en || product.description;
-    } catch {
-      // Not JSON, use as is
     }
 
     const metadata = JSON.parse(product.metadataJson);

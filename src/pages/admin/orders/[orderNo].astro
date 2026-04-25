@@ -1,5 +1,5 @@
 ---
-import BaseLayout from "@/components/layout/BaseLayout.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { formatPrice } from "@/data/site";
 import { getOrderByOrderNo, getPaymentByOrderId, getRuntimeEnv, getOrderLogsFromD1 } from "@/lib/orders";
 
@@ -41,6 +41,17 @@ if (!order) {
 }
 
 const format = (value: number) => formatPrice(value, "en");
+type DetailAction = {
+  label: string;
+  endpoint: string;
+  method: "POST";
+  payload?: {
+    status: string;
+    message: string;
+  };
+  danger?: boolean;
+};
+
 const copy = isZh
   ? {
       pageEyebrow: "订单详情",
@@ -74,10 +85,11 @@ const copy = isZh
       updated: "订单已更新",
       requestFailed: "请求失败",
       actionAccept: "接单",
-      actionCooking: "开始出餐",
-      actionDelivery: "开始配送",
+      actionCooking: "开始制作",
+      actionDelivery: "标记备好",
       actionComplete: "完成",
-      actionCancel: "取消",
+      actionCancel: "取消订单",
+      confirmCancel: "确认取消这笔订单？",
     }
   : {
       pageEyebrow: "Merchant Order",
@@ -111,27 +123,62 @@ const copy = isZh
       updated: "Order updated.",
       requestFailed: "Request failed.",
       actionAccept: "Accept",
-      actionCooking: "Start cooking",
-      actionDelivery: "Out for delivery",
+      actionCooking: "Start preparing",
+      actionDelivery: "Mark ready",
       actionComplete: "Complete",
-      actionCancel: "Cancel",
+      actionCancel: "Cancel order",
+      confirmCancel: "Cancel this order?",
     };
-const actions = [
-  { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
-  { label: copy.actionCooking, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Merchant started cooking." } },
-  { label: copy.actionDelivery, endpoint: "status", method: "POST" as const, payload: { status: "delivering", message: "Order handed off for delivery." } },
-  { label: copy.actionComplete, endpoint: "status", method: "POST" as const, payload: { status: "completed", message: "Order marked as completed." } },
-  { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const },
-];
+
+function actionsForOrder(currentOrder: typeof order): DetailAction[] {
+  if (!currentOrder) return [];
+  switch (currentOrder.orderStatus) {
+    case "paid_waiting_accept":
+      return [
+        { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
+        { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const, danger: true },
+      ];
+    case "accepted":
+      return [
+        { label: copy.actionCooking, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Kitchen started preparing the order." } },
+        { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const, danger: true },
+      ];
+    case "cooking":
+      return [
+        { label: copy.actionDelivery, endpoint: "status", method: "POST" as const, payload: { status: "delivering", message: "Order marked ready." } },
+      ];
+    case "delivering":
+      return [
+        { label: copy.actionComplete, endpoint: "status", method: "POST" as const, payload: { status: "completed", message: "Order marked as completed." } },
+      ];
+    default:
+      return [];
+  }
+}
+
+const actions = actionsForOrder(order);
 
 function statusLabel(value: string) {
-  if (!isZh) return value.replaceAll("_", " ");
+  if (!isZh) {
+    return ({
+      paid_waiting_accept: "New",
+      accepted: "New",
+      cooking: "Preparing",
+      delivering: "Ready",
+      completed: "Completed",
+      cancelled: "Cancelled",
+      refunded: "Refunded",
+      paid: "Paid",
+      unpaid: "Unpaid",
+      failed: "Failed",
+    } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+  }
   return ({
     pending_payment: "待支付",
-    paid_waiting_accept: "待接单",
-    accepted: "已接单",
+    paid_waiting_accept: "新订单",
+    accepted: "新订单",
     cooking: "制作中",
-    delivering: "配送中",
+    delivering: "已备好",
     completed: "已完成",
     cancelled: "已取消",
     refunded: "已退款",
@@ -154,7 +201,7 @@ function formatDate(value: string) {
 }
 ---
 
-<BaseLayout lang={uiLang}>
+<AdminLayout lang={uiLang} title={order ? `${order.orderNo} | Sumi Ramen Admin` : "Order | Sumi Ramen Admin"}>
   <section class="container admin-shell" data-order-no={order?.orderNo ?? ""} data-ui-lang={uiLang}>
     <div class="page-head">
       <div class="page-copy">
@@ -213,7 +260,7 @@ function formatDate(value: string) {
         <section class="action-panel">
           {actions.map((action) => (
             <button
-              class:list={["ghost-button admin-action", "emphasis"]}
+              class:list={["ghost-button admin-action", action.danger ? "danger" : "emphasis"]}
               type="button"
               data-endpoint={action.endpoint}
               data-method={action.method}
@@ -289,6 +336,7 @@ function formatDate(value: string) {
         updating: copy.updating,
         updated: copy.updated,
         requestFailed: copy.requestFailed,
+        confirmCancel: copy.confirmCancel,
       })}
     />
 
@@ -306,6 +354,10 @@ function formatDate(value: string) {
         const method = target.dataset.method || "POST";
         const rawPayload = target.dataset.payload;
         const payload = rawPayload ? JSON.parse(rawPayload) : undefined;
+
+        if (endpoint === "cancel" && !window.confirm(copy.confirmCancel || "Cancel this order?")) {
+          return;
+        }
 
         if (notice) {
           notice.textContent = copy.updating;
@@ -334,37 +386,11 @@ function formatDate(value: string) {
       });
     </script>
   </section>
-</BaseLayout>
+</AdminLayout>
 
 <style>
-  :global(body) {
-    background: var(--admin-bg);
-    color: var(--admin-text);
-  }
-  :global(.site-header .header-shell) {
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
-      rgba(255,255,255,.92);
-    border-color: rgba(45,108,223,.12);
-    box-shadow: 0 16px 40px rgba(16,78,157,.08);
-  }
-  :global(.site-header .brand-mark) {
-    color: #174ea6;
-  }
-  :global(.site-header .locale-menu) {
-    display: none;
-  }
-  :global(.site-header .locale-trigger),
-  :global(.site-header .locale-option),
-  :global(.site-header .header-order) {
-    color: rgba(18,49,75,.72);
-  }
-  :global(.site-header .header-order) {
-    border-color: rgba(45,108,223,.14);
-    background: rgba(45,108,223,.06);
-  }
   .admin-shell {
-    padding: 140px 0 88px;
+    padding: 32px 0 88px;
     color: #12314b;
   }
   .page-head {
@@ -390,6 +416,9 @@ function formatDate(value: string) {
     background: #ffffff;
   }
   .lang-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 38px;
     padding: 0 12px;
     border-radius: 999px;
@@ -496,6 +525,11 @@ function formatDate(value: string) {
     border-color: rgba(45,108,223,.24);
     background: rgba(45,108,223,.08);
     color: #174ea6;
+  }
+  .admin-action.danger {
+    border-color: rgba(207,69,72,.18);
+    background: rgba(207,69,72,.08);
+    color: #b42318;
   }
   .notice {
     min-height: 24px;

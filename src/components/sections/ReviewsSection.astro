@@ -17,7 +17,7 @@ const content = getContent(lang);
   <div class="reviews-grid">
     {reviews.map((review) => (
       <article class="review-card">
-        <img src={review.avatar} alt={review.name} loading="lazy" />
+        <div class="review-avatar" aria-hidden="true">{review.name.slice(0, 1)}</div>
         <div>
           <div class="review-headline">
             <strong>{review.name}</strong>
@@ -64,11 +64,18 @@ const content = getContent(lang);
       rgba(25,18,16,.9);
     border: 1px solid rgba(255,255,255,.08);
   }
-  .review-card img {
+  .review-avatar {
+    display: grid;
+    place-items: center;
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    object-fit: cover;
+    border: 1px solid rgba(241,182,107,.22);
+    background: rgba(241,182,107,.1);
+    color: rgba(241,182,107,.94);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
   }
   .review-headline {
     display: flex;

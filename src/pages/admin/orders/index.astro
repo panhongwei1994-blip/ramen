@@ -1,5 +1,5 @@
 ---
-import BaseLayout from "@/components/layout/BaseLayout.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { formatPrice } from "@/data/site";
 import { getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } from "@/lib/orders";
 
@@ -24,7 +24,7 @@ const copy = isZh
   ? {
       pageEyebrow: "后台订单",
       pageTitle: "订单",
-      pageCopy: "给员工看的亮色队列界面，处理中和已完成订单分开展示。",
+      pageCopy: "给员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
       langEn: "EN",
       langZh: "中文",
       alertButton: "开启通知",
@@ -34,7 +34,7 @@ const copy = isZh
       alertNew: "新订单",
       storageWarning: "当前部署没有持久化订单存储。请绑定 D1 的 DB，或保留旧的 ORDERS KV，否则结账后后台队列可能为空。",
       liveQueue: "实时队列",
-      processing: "处理中",
+      processing: "订单队列",
       orders: "单",
       noProcessing: "当前没有处理中订单。",
       history: "历史订单",
@@ -52,8 +52,8 @@ const copy = isZh
       notifyTitle: "新订单来了",
       actionAccept: "接单",
       actionCancel: "取消",
-      actionCooking: "开始出餐",
-      actionDelivery: "开始配送",
+      actionCooking: "开始制作",
+      actionDelivery: "标记备好",
       actionComplete: "完成",
       cash: "现金",
       card: "卡支付",
@@ -61,11 +61,20 @@ const copy = isZh
       navOrders: "订单队列",
       navProducts: "菜品管理",
       navSettings: "店铺设置",
+      filterAll: "全部",
+      filterNew: "新订单",
+      filterPreparing: "制作中",
+      filterReady: "已备好",
+      filterCompleted: "已完成",
+      filterCancelled: "已取消",
+      searchPlaceholder: "搜索订单号、姓名或电话",
+      noMatches: "没有匹配的订单。",
+      confirmCancel: "确认取消这笔订单？",
     }
   : {
       pageEyebrow: "Merchant Orders",
       pageTitle: "Orders",
-      pageCopy: "Bright, simple queue view for staff. Processing orders are separated from completed history.",
+      pageCopy: "A staff-focused queue for finding orders, scanning status, and moving service forward quickly.",
       langEn: "EN",
       langZh: "中文",
       alertButton: "Enable order alerts",
@@ -75,7 +84,7 @@ const copy = isZh
       alertNew: "New order",
       storageWarning: "This deployment is running without persistent order storage. Bind a D1 database as DB or keep the legacy ORDERS KV binding enabled, otherwise the admin queue can look empty after checkout.",
       liveQueue: "Live queue",
-      processing: "Processing",
+      processing: "Order queue",
       orders: "orders",
       noProcessing: "No processing orders.",
       history: "History",
@@ -92,9 +101,9 @@ const copy = isZh
       updating: "Updating...",
       notifyTitle: "New order received",
       actionAccept: "Accept",
-      actionCancel: "Cancel",
-      actionCooking: "Start cooking",
-      actionDelivery: "Out for delivery",
+      actionCancel: "Cancel order",
+      actionCooking: "Start preparing",
+      actionDelivery: "Mark ready",
       actionComplete: "Complete",
       cash: "Cash",
       card: "Card",
@@ -102,6 +111,15 @@ const copy = isZh
       navOrders: "Orders",
       navProducts: "Products",
       navSettings: "Settings",
+      filterAll: "All",
+      filterNew: "New",
+      filterPreparing: "Preparing",
+      filterReady: "Ready",
+      filterCompleted: "Completed",
+      filterCancelled: "Cancelled",
+      searchPlaceholder: "Search order, name, or phone",
+      noMatches: "No matching orders.",
+      confirmCancel: "Cancel this order?",
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
@@ -130,13 +148,26 @@ type QueueAction = {
 };
 
 function statusLabel(value: string) {
-  if (!isZh) return value.replaceAll("_", " ");
+  if (!isZh) {
+    return ({
+      paid_waiting_accept: "New",
+      accepted: "New",
+      cooking: "Preparing",
+      delivering: "Ready",
+      completed: "Completed",
+      cancelled: "Cancelled",
+      refunded: "Refunded",
+      paid: "Paid",
+      unpaid: "Unpaid",
+      failed: "Failed",
+    } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+  }
   return ({
     pending_payment: "待支付",
-    paid_waiting_accept: "待接单",
-    accepted: "已接单",
+    paid_waiting_accept: "新订单",
+    accepted: "新订单",
     cooking: "制作中",
-    delivering: "配送中",
+    delivering: "已备好",
     completed: "已完成",
     cancelled: "已取消",
     refunded: "已退款",
@@ -145,6 +176,15 @@ function statusLabel(value: string) {
     failed: "失败",
     refunded_payment: "已退款",
   } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+}
+
+function statusGroup(order: OrderRecord) {
+  if (order.orderStatus === "paid_waiting_accept" || order.orderStatus === "accepted") return "new";
+  if (order.orderStatus === "cooking") return "preparing";
+  if (order.orderStatus === "delivering") return "ready";
+  if (order.orderStatus === "completed") return "completed";
+  if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "cancelled";
+  return "new";
 }
 
 function itemCountLabel(count: number) {
@@ -181,12 +221,12 @@ function queueActions(order: OrderRecord): QueueAction[] {
       ];
     case "accepted":
       return [
-        { label: copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Merchant started cooking." } },
+        { label: copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Kitchen started preparing the order." } },
         { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
       ];
     case "cooking":
       return [
-        { label: copy.actionDelivery, endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order handed off for delivery." } },
+        { label: copy.actionDelivery, endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order marked ready." } },
       ];
     case "delivering":
       return [
@@ -198,7 +238,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
 }
 ---
 
-<BaseLayout lang={uiLang}>
+<AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sumi Ramen" : "Orders | Sumi Ramen Admin"}>
   <section class="container admin-shell" data-ui-lang={uiLang}>
     <nav class="admin-nav card">
       <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/orders") }]} href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.navOrders}</a>
@@ -222,6 +262,22 @@ function queueActions(order: OrderRecord): QueueAction[] {
       </div>
     </div>
 
+    <div class="order-toolbar card" role="search">
+      <div class="filter-tabs" aria-label="Order status filters">
+        <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button>
+        <button class="filter-tab" type="button" data-filter="new">{copy.filterNew}</button>
+        <button class="filter-tab" type="button" data-filter="preparing">{copy.filterPreparing}</button>
+        <button class="filter-tab" type="button" data-filter="ready">{copy.filterReady}</button>
+        <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button>
+        <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button>
+      </div>
+      <label class="order-search">
+        <span class="sr-only">{copy.searchPlaceholder}</span>
+        <input id="order-search-input" type="search" placeholder={copy.searchPlaceholder} autocomplete="off" />
+      </label>
+    </div>
+    <div class="card table-empty no-match-panel" id="no-matching-orders" hidden>{copy.noMatches}</div>
+
     {!hasPersistentStore ? (
       <div class="storage-warning card">
         {copy.storageWarning}
@@ -244,6 +300,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
               class:list={["card order-card", orderTone(order)]}
               data-order-id={order.id}
               data-order-no={order.orderNo}
+              data-status-group={statusGroup(order)}
+              data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}
             >
               <div class="order-main">
                 <div>
@@ -254,15 +312,18 @@ function queueActions(order: OrderRecord): QueueAction[] {
                     {" · "}
                     <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
                     {" · "}
+                    {order.phone || "No phone"}
+                    {" · "}
                     {formatDate(order.createdAt)}
                   </p>
+                  {order.remark ? <p class="order-note">{order.remark}</p> : null}
                 </div>
                 <div class="order-total">{format(order.totalAmount)}</div>
               </div>
               <div class="order-preview">
                 {order.items.slice(0, 3).map((item) => (
                   <div class="preview-item">
-                    <img src={item.imageUrl} alt={item.productName} />
+                    <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
                     <div class="preview-copy">
                       <strong>{item.productName}</strong>
                       <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
@@ -319,8 +380,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       {completedOrders.length ? (
         <div class="order-list">
-          {completedOrders.map((order, idx) => (
+          {completedOrders.map((order) => (
             <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}></span>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -362,8 +424,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
           <p class="orders-meta">{closedOrders.length} {copy.orders}</p>
         </div>
         <div class="order-list">
-          {closedOrders.map((order, idx) => (
+          {closedOrders.map((order) => (
             <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}></span>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -404,6 +467,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         updateError: copy.updateError,
         updating: copy.updating,
         notifyTitle: copy.notifyTitle,
+        confirmCancel: copy.confirmCancel,
         allOrderIds: orders.map(o => o.id),
       })}
     />
@@ -417,6 +481,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const alertRefreshDelayMs = 1500;
 
       const copy = JSON.parse(copyNode?.textContent || "{}");
+      const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
+      const searchInput = document.getElementById("order-search-input");
+      const noMatches = document.getElementById("no-matching-orders");
       const initialOrderIds = copy.allOrderIds || [];
       const seenOrders = new Set(initialOrderIds);
       let audioContext;
@@ -445,6 +512,46 @@ function queueActions(order: OrderRecord): QueueAction[] {
       };
 
       persistSeenOrders();
+
+      const getCardMeta = (card) => {
+        const marker = card.querySelector("[data-status-group]");
+        return {
+          status: card.dataset.statusGroup || marker?.getAttribute("data-status-group") || "",
+          search: (card.dataset.search || marker?.getAttribute("data-search") || "").toLowerCase(),
+        };
+      };
+
+      const applyOrderFilters = () => {
+        const activeFilter = document.querySelector("[data-filter].active")?.getAttribute("data-filter") || "all";
+        const query = searchInput instanceof HTMLInputElement ? searchInput.value.trim().toLowerCase() : "";
+        let visibleCount = 0;
+
+        document.querySelectorAll(".order-card").forEach((card) => {
+          if (!(card instanceof HTMLElement)) return;
+          const meta = getCardMeta(card);
+          const statusMatch = activeFilter === "all" || meta.status === activeFilter;
+          const queryMatch = !query || meta.search.includes(query);
+          const visible = statusMatch && queryMatch;
+          card.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+
+        if (noMatches instanceof HTMLElement) {
+          noMatches.hidden = visibleCount > 0;
+        }
+      };
+
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          filterButtons.forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          applyOrderFilters();
+        });
+      });
+
+      if (searchInput instanceof HTMLInputElement) {
+        searchInput.addEventListener("input", applyOrderFilters);
+      }
 
       const setStatus = (message) => {
         if (alertStatus) {
@@ -477,7 +584,8 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       const playOrderTone = () => {
         try {
-          audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+          const AudioContextCtor = window.AudioContext || window["webkitAudioContext"];
+          audioContext = audioContext || new AudioContextCtor();
         } catch {
           return;
         }
@@ -591,6 +699,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
         if (!orderNo || !endpoint) return;
 
+        if (endpoint === "cancel" && !window.confirm(copy.confirmCancel || "Cancel this order?")) {
+          return;
+        }
+
         inlineButton.disabled = true;
         const previousLabel = inlineButton.textContent;
         inlineButton.textContent = copy.updating;
@@ -621,42 +733,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
       });
     </script>
   </section>
-</BaseLayout>
+</AdminLayout>
 
 <style>
-  :global(body) {
-    background: var(--admin-bg);
-    color: var(--admin-text);
-  }
-  :global(.site-header .header-shell) {
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
-      rgba(255,255,255,.92);
-    border-color: rgba(45,108,223,.12);
-    box-shadow: 0 16px 40px rgba(16,78,157,.08);
-  }
-  :global(.site-header .brand-mark) {
-    color: #174ea6;
-  }
-  :global(.site-header .locale-menu) {
-    display: none;
-  }
-  :global(.site-header .locale-popover) {
-    background: #ffffff;
-    border-color: rgba(45,108,223,.12);
-    box-shadow: 0 18px 48px rgba(16,78,157,.08);
-  }
-  :global(.site-header .locale-trigger),
-  :global(.site-header .locale-option),
-  :global(.site-header .header-order) {
-    color: rgba(18,49,75,.72);
-  }
-  :global(.site-header .header-order) {
-    border-color: rgba(45,108,223,.14);
-    background: rgba(45,108,223,.06);
-  }
   .admin-shell {
-    padding: 140px 0 88px;
+    padding: 32px 0 88px;
     color: var(--admin-text);
   }
   .admin-shell :global(.eyebrow) {
@@ -755,6 +836,66 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .orders-section {
     display: grid;
     gap: 16px;
+  }
+  .order-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: center;
+    margin: 22px 0 24px;
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    box-shadow: 0 12px 34px rgba(15,76,153,.06);
+  }
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .filter-tab {
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid rgba(45,108,223,.14);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #174ea6;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .filter-tab.active {
+    background: #174ea6;
+    color: #ffffff;
+  }
+  .order-search {
+    flex: 1 1 260px;
+    max-width: 360px;
+  }
+  .order-search input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid rgba(45,108,223,.16);
+    border-radius: 999px;
+    background: #f8fbff;
+    color: #12314b;
+  }
+  .no-match-panel {
+    margin-bottom: 18px;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .secondary-section {
     scroll-margin-top: 140px;
@@ -908,6 +1049,12 @@ function queueActions(order: OrderRecord): QueueAction[] {
     margin: 8px 0 0;
     color: rgba(18,49,75,.64);
   }
+  .order-note {
+    margin: 8px 0 0;
+    color: rgba(18,49,75,.8);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
   .order-total {
     padding: 12px 16px;
     border-radius: 18px;
@@ -1040,17 +1187,37 @@ function queueActions(order: OrderRecord): QueueAction[] {
     background: rgba(255,255,255,.96);
   }
   @media (max-width: 760px) {
+    .admin-shell {
+      padding-top: 18px;
+    }
     .page-copy,
     .orders-head,
+    .page-head,
+    .order-toolbar,
     .order-main,
     .order-rail {
       display: grid;
+    }
+    .admin-nav,
+    .filter-tabs {
+      width: 100%;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+    }
+    .order-search {
+      max-width: none;
     }
     .order-total {
       width: fit-content;
     }
     .order-actions {
       align-items: stretch;
+    }
+    .detail-link,
+    .queue-action {
+      flex: 1 1 100%;
+      min-height: 48px;
     }
   }
 </style>

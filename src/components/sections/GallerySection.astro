@@ -19,6 +19,7 @@ const featured = featuredIds.flatMap((id) => {
 });
 
 const [heroImage, ...secondaryImages] = featured;
+const optimizedImage = (path: string) => path.replace(/\.png$/, "-768.jpg");
 ---
 
 <section id="gallery" class="gallery-shell container">
@@ -33,7 +34,15 @@ const [heroImage, ...secondaryImages] = featured;
   {heroImage && (
     <div class="gallery-grid">
       <article class="gallery-lead">
-        <img src={heroImage.image} alt={heroImage.name} loading="lazy" />
+        <img
+          src={optimizedImage(heroImage.image)}
+          srcset={`${optimizedImage(heroImage.image)} 768w, ${heroImage.image} 1024w`}
+          sizes="(max-width: 900px) calc(100vw - 32px), 52vw"
+          alt={`${heroImage.name} ramen bowl`}
+          loading="lazy"
+          width="768"
+          height="768"
+        />
         <div class="gallery-caption">
           <span class="gallery-kicker">{content.categories.signature}</span>
           <h3>{heroImage.name}</h3>
@@ -44,7 +53,15 @@ const [heroImage, ...secondaryImages] = featured;
       <div class="gallery-rail">
         {secondaryImages.map((product) => (
           <article class="gallery-tile">
-            <img src={product.image} alt={product.name} loading="lazy" />
+            <img
+              src={optimizedImage(product.image)}
+              srcset={`${optimizedImage(product.image)} 768w, ${product.image} 1024w`}
+              sizes="(max-width: 640px) calc(100vw - 32px), 24vw"
+              alt={`${product.name} menu item`}
+              loading="lazy"
+              width="768"
+              height="768"
+            />
             <div class="gallery-tile-copy">
               <span>{product.name}</span>
               <p>{product.description}</p>

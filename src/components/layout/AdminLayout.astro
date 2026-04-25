@@ -1,0 +1,35 @@
+---
+import "@/styles/global.css";
+
+interface Props {
+  lang?: string;
+  title?: string;
+  description?: string;
+}
+
+const lang = Astro.props.lang ?? "en";
+const title = Astro.props.title ?? "Sumi Ramen Admin";
+const description = Astro.props.description ?? "Staff order management for Sumi Ramen.";
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f8fbff" />
+  </head>
+  <body class="admin-body">
+    <slot />
+  </body>
+</html>
+
+<style>
+  :global(.admin-body) {
+    min-height: 100vh;
+    background: var(--admin-bg);
+    color: var(--admin-text);
+  }
+</style>

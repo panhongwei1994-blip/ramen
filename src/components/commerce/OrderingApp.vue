@@ -27,7 +27,16 @@
     <div id="order-menu" class="menu-grid" v-else>
       <article v-for="product in filteredProducts" :key="product.id" class="product-card card">
         <button class="image-button" type="button" @click="openProduct(product)">
-          <img :src="product.image" :alt="product.name" class="product-image" loading="lazy" />
+          <img
+            :src="optimizedImage(product.image)"
+            :srcset="imageSrcset(product.image)"
+            sizes="(max-width: 760px) calc(100vw - 32px), (max-width: 1080px) 48vw, 31vw"
+            :alt="`${product.name} ramen menu item`"
+            class="product-image"
+            loading="lazy"
+            width="768"
+            height="768"
+          />
         </button>
         <div class="product-copy">
           <p class="product-kicker">{{ categories.find((item) => item.id === product.category)?.label }}</p>
@@ -61,7 +70,15 @@
     <div v-if="productOpen" class="overlay" @click.self="closeProduct">
       <div class="modal card">
         <button class="close-button" type="button" @click="closeProduct">×</button>
-        <img :src="selected.image" :alt="selected.name" class="modal-image" />
+        <img
+          :src="optimizedImage(selected.image)"
+          :srcset="imageSrcset(selected.image)"
+          sizes="(max-width: 760px) calc(100vw - 36px), 824px"
+          :alt="`${selected.name} with selected toppings`"
+          class="modal-image"
+          width="768"
+          height="768"
+        />
         <div class="modal-copy">
           <div class="product-header">
             <div>
@@ -125,7 +142,15 @@
             <div v-if="!cart.length" class="empty-state">{{ copy.emptyCart }}</div>
             <div v-else class="cart-items">
               <article v-for="item in cart" :key="item.id" class="cart-item">
-                <img :src="item.image" :alt="item.name" />
+                <img
+                  :src="optimizedImage(item.image)"
+                  :srcset="imageSrcset(item.image)"
+                  sizes="82px"
+                  :alt="`${item.name} in cart`"
+                  loading="lazy"
+                  width="768"
+                  height="768"
+                />
                 <div>
                   <div class="cart-item-head">
                     <strong>{{ item.name }}</strong>
@@ -428,6 +453,8 @@ const modalTotal = computed(() => {
 });
 
 const format = (value: number) => formatPrice(value, lang);
+const optimizedImage = (path: string) => path.replace(/\.png$/, "-768.jpg");
+const imageSrcset = (path: string) => `${optimizedImage(path)} 768w, ${path} 1024w`;
 
 function openProduct(product: (typeof products)[number]) {
   selected.value = product;
