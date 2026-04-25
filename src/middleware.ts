@@ -27,7 +27,7 @@ function isAdminRequest(pathname: string) {
 function isAuthorizedAdminRequest(request: Request, locals: unknown) {
   const env = getRuntimeEnv(locals);
   const password = env.ADMIN_PASSWORD?.trim();
-  const username = env.ADMIN_USERNAME?.trim() || "staff";
+  const username = env.ADMIN_USERNAME?.trim() || "admin";
 
   if (!password) {
     return false;

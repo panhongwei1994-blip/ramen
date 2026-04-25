@@ -84,6 +84,8 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     </div>
     <script is:inline>
       const brandName = document.documentElement.dataset.brand || "App";
+      const isChinese = document.documentElement.lang === "zh";
+      const installDismissedKey = "sumi-ramen-ios-install-dismissed";
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -116,19 +118,34 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         if (!(modal instanceof HTMLElement) || !(copyNode instanceof HTMLElement) || !(stepsNode instanceof HTMLElement)) return;
 
         const ios = variant === "ios";
+        modal.dataset.variant = variant;
+        const titleNode = document.getElementById("install-title");
+        const confirmNode = document.querySelector(".install-confirm");
+        if (titleNode) {
+          titleNode.textContent = ios
+            ? (isChinese ? `将 ${brandName} 添加到手机屏幕` : `Add ${brandName} to your Home Screen`)
+            : (isChinese ? `安装 ${brandName}` : `Install ${brandName}`);
+        }
+        if (confirmNode instanceof HTMLButtonElement) {
+          confirmNode.textContent = ios
+            ? (isChinese ? "不再提醒" : "Do not remind me")
+            : (isChinese ? "关闭" : "Close");
+        }
         copyNode.textContent = ios
-          ? `Install ${brandName} to open it like an app from your iPhone home screen.`
-          : `Install ${brandName} for faster access from your device home screen.`;
+          ? (isChinese
+            ? "点按浏览器里的分享按钮，在菜单中选择“添加到主屏幕”。不同浏览器的分享入口可能在底部、顶部或菜单内。"
+            : `Tap the browser Share button, then choose Add to Home Screen. The share control may sit at the bottom, top, or inside the menu depending on your browser.`)
+          : (isChinese
+            ? `将 ${brandName} 添加到主屏幕，方便下次快速打开。`
+            : `Install ${brandName} for faster access from your device home screen.`);
         stepsNode.innerHTML = ios
           ? `
-            <div class="install-step"><span class="install-step-number">1</span><p>Tap the Share button in Safari.</p></div>
-            <div class="install-step"><span class="install-step-number">2</span><p>Select Add to Home Screen.</p></div>
-            <div class="install-step"><span class="install-step-number">3</span><p>Save it as ${brandName}.</p></div>
+            <div class="install-step"><span class="install-step-number">1</span><p>${isChinese ? "点按浏览器中的“分享”或分享图标。" : "Tap Share or the share icon in your browser."}</p></div>
+            <div class="install-step"><span class="install-step-number">2</span><p>${isChinese ? "在菜单中选择“添加到主屏幕”。" : "Choose Add to Home Screen from the menu."}</p></div>
           `
           : `
-            <div class="install-step"><span class="install-step-number">1</span><p>Open your browser menu.</p></div>
-            <div class="install-step"><span class="install-step-number">2</span><p>Choose Install App or Add to Home Screen.</p></div>
-            <div class="install-step"><span class="install-step-number">3</span><p>Save it as ${brandName}.</p></div>
+            <div class="install-step"><span class="install-step-number">1</span><p>${isChinese ? "打开浏览器菜单。" : "Open your browser menu."}</p></div>
+            <div class="install-step"><span class="install-step-number">2</span><p>${isChinese ? "选择“安装应用”或“添加到主屏幕”。" : "Choose Install App or Add to Home Screen."}</p></div>
           `;
         modal.hidden = false;
         document.documentElement.style.overflow = "hidden";
@@ -136,6 +153,13 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
 
       const closeInstallModal = () => {
         if (!(modal instanceof HTMLElement)) return;
+        if (modal.dataset.variant === "ios") {
+          try {
+            window.localStorage.setItem(installDismissedKey, "true");
+          } catch {
+            // Ignore storage access issues.
+          }
+        }
         modal.hidden = true;
         document.documentElement.style.overflow = "";
       };
@@ -170,6 +194,16 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         if (!closeTrigger) return;
         event.preventDefault();
         closeInstallModal();
+      });
+
+      window.addEventListener("load", () => {
+        if (!isIosSafari() || isStandalone()) return;
+        try {
+          if (window.localStorage.getItem(installDismissedKey) === "true") return;
+        } catch {
+          // Ignore storage access issues.
+        }
+        window.setTimeout(() => showInstallModal("ios"), 1800);
       });
     </script>
   </body>
@@ -307,6 +341,71 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     width: min(420px, calc(100vw - 24px));
     padding: 28px;
     text-align: center;
+  }
+  .install-modal[data-variant="ios"] .install-backdrop {
+    background: rgba(15, 23, 42, .26);
+    backdrop-filter: blur(2px);
+  }
+  .install-modal[data-variant="ios"] .install-dialog {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 28px));
+    padding: 24px 26px 20px;
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(36, 44, 60, .98), rgba(25, 31, 44, .98)),
+      #1f2634;
+    border: 1px solid rgba(255,255,255,.12);
+    text-align: left;
+    box-shadow: 0 24px 60px rgba(0,0,0,.42);
+  }
+  .install-modal[data-variant="ios"] .install-logo,
+  .install-modal[data-variant="ios"] .eyebrow {
+    display: none;
+  }
+  .install-modal[data-variant="ios"] .install-close {
+    border: 0;
+    background: transparent;
+    color: rgba(235, 240, 248, .72);
+    font-size: 28px;
+  }
+  .install-modal[data-variant="ios"] h3 {
+    margin: 0;
+    color: #f8fafc;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.16rem;
+    letter-spacing: 0;
+  }
+  .install-modal[data-variant="ios"] .install-copy {
+    color: rgba(226, 232, 240, .82);
+  }
+  .install-modal[data-variant="ios"] .install-steps {
+    gap: 8px;
+  }
+  .install-modal[data-variant="ios"] .install-step {
+    grid-template-columns: 28px 1fr;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .install-modal[data-variant="ios"] .install-step-number {
+    background: rgba(96, 165, 250, .16);
+    color: #93c5fd;
+  }
+  .install-modal[data-variant="ios"] .install-step p {
+    color: rgba(226, 232, 240, .9);
+  }
+  .install-modal[data-variant="ios"] .install-confirm {
+    min-height: 52px;
+    margin-top: 22px;
+    border: 1px solid rgba(148, 163, 184, .28);
+    border-radius: 16px;
+    background: transparent;
+    color: #f8fafc;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
   }
   .install-close {
     position: absolute;

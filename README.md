@@ -35,7 +35,7 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 PUBLIC_SITE_URL=http://localhost:4322
-ADMIN_USERNAME=staff
+ADMIN_USERNAME=admin
 ADMIN_PASSWORD=change-me
 ```
 
@@ -130,7 +130,7 @@ wrangler secret put ADMIN_PASSWORD
 
 ## Admin access
 
-`/admin/*` and `/api/admin/*` are protected with HTTP Basic Auth. `ADMIN_USERNAME` defaults to `staff`; `ADMIN_PASSWORD` must be configured as a secret in production.
+`/admin/*` and `/api/admin/*` are protected with HTTP Basic Auth. `ADMIN_USERNAME` defaults to `admin`; `ADMIN_PASSWORD` must be configured as a secret in production.
 
 ## Known limitations
 

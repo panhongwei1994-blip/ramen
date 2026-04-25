@@ -33,7 +33,7 @@ const content = getContent(lang);
     </div>
 
     <div class="hero-visual">
-      <div class="hero-poster card">
+      <div class="hero-poster">
         <img
           src="/ramen/hero-poster-768.jpg"
           srcset="/ramen/hero-poster-768.jpg 768w, /ramen/hero-poster.png 1024w"
@@ -139,16 +139,16 @@ const content = getContent(lang);
   }
   .hero-poster {
     overflow: hidden;
-    padding: 14px;
-    background:
-      radial-gradient(circle at top right, rgba(195,75,45,.18), transparent 30%),
-      linear-gradient(180deg, rgba(255,245,232,.04), rgba(255,245,232,.02)),
-      rgba(18,13,11,.92);
+    aspect-ratio: 1 / 1;
+    max-height: min(72vh, 680px);
+    border-radius: 32px;
     animation: floatPoster 8s ease-in-out infinite;
   }
   .hero-poster img {
     width: 100%;
-    border-radius: 24px;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
   }
   .hero-proof {
     position: relative;
@@ -223,6 +223,10 @@ const content = getContent(lang);
     }
     .hero-proof {
       grid-template-columns: 1fr;
+    }
+    .hero-poster {
+      max-height: 46svh;
+      border-radius: 24px;
     }
   }
 </style>

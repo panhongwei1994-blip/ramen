@@ -1,5 +1,5 @@
 ---
-import BaseLayout from "@/components/layout/BaseLayout.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { getProductsFromD1, getCategoriesFromD1, getRuntimeEnv } from "@/lib/orders";
 import { formatPrice } from "@/data/site";
 
@@ -68,7 +68,7 @@ const copy = isZh
     };
 ---
 
-<BaseLayout lang={uiLang}>
+<AdminLayout lang={uiLang} title={isZh ? "菜品管理 | Sumi Ramen" : "Products | Sumi Ramen Admin"}>
   <section class="container admin-shell">
     <div class="page-head">
       <div>
@@ -189,7 +189,7 @@ const copy = isZh
 
     <div id="notice-toast" class="toast hidden"></div>
   </section>
-</BaseLayout>
+</AdminLayout>
 
 <script is:inline>
   const tbody = document.getElementById("product-tbody");
@@ -303,12 +303,8 @@ const copy = isZh
 </script>
 
 <style>
-  :global(body) {
-    background: var(--admin-bg);
-    color: var(--admin-text);
-  }
   .admin-shell {
-    padding: 140px 0 88px;
+    padding: 32px 0 88px;
   }
   .admin-shell :global(.eyebrow) {
     color: var(--admin-gold);
@@ -326,6 +322,7 @@ const copy = isZh
   .head-actions {
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
   }
   .table-card {
     background: white;
@@ -403,9 +400,26 @@ const copy = isZh
   }
   .editing .view-val {
     display: none;
+  }
   .action-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid rgba(45,108,223,.18);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #174ea6;
     font-weight: 600;
     cursor: pointer;
+  }
+  .primary-button {
+    min-height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #174ea6, #2d6cdf);
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 12px 24px rgba(45,108,223,.22);
   }
   .ghost-button {
     background: white;

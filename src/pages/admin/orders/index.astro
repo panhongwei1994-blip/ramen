@@ -135,6 +135,10 @@ const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
 
 const hasMoreCompleted = allCompletedOrders.length > completedOrders.length;
 const hasMoreClosed = allClosedOrders.length > closedOrders.length;
+const addressPreview = (order: OrderRecord) => {
+  if (order.fulfillment === "pickup") return isZh ? "自取" : "Pickup";
+  return order.address || (isZh ? "未填写地址" : "No address");
+};
 
 type QueueAction = {
   label: string;
@@ -301,12 +305,15 @@ function queueActions(order: OrderRecord): QueueAction[] {
               data-order-id={order.id}
               data-order-no={order.orderNo}
               data-status-group={statusGroup(order)}
-              data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}
+              data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
             >
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || copy.guest}</h3>
+                  <h3>
+                    <span>{order.customerName || copy.guest}</span>
+                    <small>{addressPreview(order)}</small>
+                  </h3>
                   <p class="order-subcopy">
                     {itemCountLabel(order.items.length)}
                     {" · "}
@@ -382,7 +389,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         <div class="order-list">
           {completedOrders.map((order) => (
             <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
-              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}></span>
+              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -426,7 +433,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         <div class="order-list">
           {closedOrders.map((order) => (
             <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
-              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone}`}></span>
+              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
               <div class="order-main">
                 <div>
                   <p class="order-no">{order.orderNo}</p>
@@ -478,7 +485,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const copyNode = document.getElementById("admin-orders-copy");
       const storageKey = "sumi-ramen-order-alerts-enabled";
       const seenOrdersKey = "sumi-ramen-seen-orders";
-      const alertRefreshDelayMs = 1500;
+      const alertRefreshDelayMs = 10500;
 
       const copy = JSON.parse(copyNode?.textContent || "{}");
       const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
@@ -586,14 +593,17 @@ function queueActions(order: OrderRecord): QueueAction[] {
         try {
           const AudioContextCtor = window.AudioContext || window["webkitAudioContext"];
           audioContext = audioContext || new AudioContextCtor();
+          if (audioContext.state === "suspended") {
+            void audioContext.resume();
+          }
         } catch {
           return;
         }
         if (!audioContext) return;
         const now = audioContext.currentTime;
-        const notes = [659, 784, 988, 784];
-        const loopCount = 10;
-        const loopDuration = 0.96;
+        const notes = [784, 988, 1175, 988, 784];
+        const loopCount = 9;
+        const loopDuration = 1.08;
 
         for (let loopIndex = 0; loopIndex < loopCount; loopIndex += 1) {
           notes.forEach((frequency, noteIndex) => {
@@ -604,7 +614,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
             oscillator.type = "triangle";
             oscillator.frequency.value = frequency;
             gain.gain.setValueAtTime(0.001, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.28, startTime + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.001, stopTime);
             oscillator.connect(gain);
             gain.connect(audioContext.destination);
@@ -903,29 +913,36 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .admin-nav {
     display: flex;
     gap: 8px;
-    padding: 6px;
+    padding: 8px;
     margin-bottom: 32px;
-    border-radius: 999px;
+    border-radius: 24px;
     background: #ffffff;
     border: 1px solid rgba(45,108,223,.12);
     width: fit-content;
-    box-shadow: 0 4px 12px rgba(16,78,157,.04);
+    box-shadow: 0 16px 36px rgba(16,78,157,.08);
   }
   .nav-item {
-    padding: 8px 18px;
-    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 16px;
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--admin-muted);
+    border: 1px solid transparent;
     transition: all 0.2s;
   }
   .nav-item:hover {
     color: var(--admin-accent);
-    background: rgba(45,108,223,.04);
+    background: rgba(45,108,223,.06);
+    border-color: rgba(45,108,223,.1);
   }
   .nav-item.active {
-    background: var(--admin-accent);
+    background: linear-gradient(135deg, #174ea6, #2d6cdf);
     color: #ffffff;
+    box-shadow: 0 10px 22px rgba(45,108,223,.22);
   }
   .page-head {
     display: flex;
@@ -1044,6 +1061,17 @@ function queueActions(order: OrderRecord): QueueAction[] {
     margin: 0;
     font-size: 1.55rem;
     line-height: 1.05;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  .order-card h3 small {
+    color: rgba(18,49,75,.58);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.35;
   }
   .order-subcopy {
     margin: 8px 0 0;

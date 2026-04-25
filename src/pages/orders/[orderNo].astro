@@ -111,6 +111,45 @@ const reconcilePath = order ? `/api/orders/${order.orderNo}/reconcile-payment` :
   const shell = document.querySelector("[data-reconcile-order]");
   const shouldReconcile = shell?.getAttribute("data-reconcile-order") === "true";
   const reconcilePath = shell?.getAttribute("data-reconcile-path");
+  const successSoundKey = "sumi-ramen-order-success-sound";
+
+  const playSuccessTone = async () => {
+    try {
+      const AudioContextCtor = window.AudioContext || window["webkitAudioContext"];
+      const context = new AudioContextCtor();
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+      const now = context.currentTime;
+      [523, 659, 784, 1046].forEach((frequency, index) => {
+        const start = now + index * 0.12;
+        const stop = start + 0.38;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.exponentialRampToValueAtTime(0.12, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, stop);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(stop);
+      });
+    } catch {
+      // Browsers may block audio after external payment redirects.
+    }
+  };
+
+  try {
+    const flaggedPath = window.localStorage.getItem(successSoundKey);
+    if (flaggedPath && window.location.pathname === new URL(flaggedPath, window.location.origin).pathname) {
+      window.localStorage.removeItem(successSoundKey);
+      window.setTimeout(() => void playSuccessTone(), 350);
+    }
+  } catch {
+    // Ignore storage access issues.
+  }
 
   if (shouldReconcile && reconcilePath) {
     window.setTimeout(() => {

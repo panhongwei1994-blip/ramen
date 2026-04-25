@@ -5,7 +5,7 @@
   "workers_dev": true,
   "vars": {
     "PUBLIC_SITE_URL": "https://ramen.hisora.cc",
-    "ADMIN_USERNAME": "staff"
+    "ADMIN_USERNAME": "admin"
   },
   "routes": [
     {

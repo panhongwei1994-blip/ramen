@@ -27,6 +27,7 @@ const orderPath = order ? `/orders/${order.orderNo}${langQuery}` : `/`;
     <script is:inline define:vars={{ orderPath }}>
       try {
         window.localStorage.removeItem("sumi-ramen-cart");
+        window.localStorage.setItem("sumi-ramen-order-success-sound", orderPath);
       } catch {
         // Ignore storage access issues.
       }
