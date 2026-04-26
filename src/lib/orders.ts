@@ -373,6 +373,43 @@ export function hasPersistentOrderStore(runtimeEnv?: RuntimeEnv) {
   return Boolean(getDbBinding(runtimeEnv) || getOrdersBinding(runtimeEnv));
 }
 
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+const CATALOG_CACHE_TTL_MS = 60_000;
+const SETTINGS_CACHE_TTL_MS = 30_000;
+const ORDER_ALERTS_CACHE_TTL_MS = 5_000;
+
+let productsCache: CacheEntry<ProductRecord[]> | null = null;
+let categoriesCache: CacheEntry<CategoryRecord[]> | null = null;
+const settingsCache = new Map<string, CacheEntry<string | null>>();
+let orderAlertsCache: CacheEntry<OrderAlertRecord[]> | null = null;
+
+function getCachedValue<T>(entry: CacheEntry<T> | null) {
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) return null;
+  return entry.value;
+}
+
+function setCachedValue<T>(value: T, ttlMs: number): CacheEntry<T> {
+  return {
+    value,
+    expiresAt: Date.now() + ttlMs,
+  };
+}
+
+function invalidateCatalogCache() {
+  productsCache = null;
+  categoriesCache = null;
+  settingsCache.clear();
+}
+
+function invalidateOrderReadCache() {
+  orderAlertsCache = null;
+}
+
 function parseJson<T>(value: string, fallback: T): T {
   try {
     return JSON.parse(value) as T;
@@ -441,6 +478,31 @@ async function getOrderItemsFromD1(orderId: string, runtimeEnv?: RuntimeEnv) {
     .all<OrderItemRow>();
 
   return result.results.map(rowToOrderItem);
+}
+
+async function getOrderItemsByOrderIdsFromD1(orderIds: string[], runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db || orderIds.length === 0) return new Map<string, OrderItemRecord[]>();
+
+  const placeholders = orderIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `SELECT id, order_id, product_id, product_name, image_url, unit_price, quantity, subtotal, add_ons_json, note
+       FROM order_items
+       WHERE order_id IN (${placeholders})
+       ORDER BY rowid ASC`,
+    )
+    .bind(...orderIds)
+    .all<OrderItemRow>();
+
+  const grouped = new Map<string, OrderItemRecord[]>();
+  for (const row of result.results) {
+    const items = grouped.get(row.order_id) ?? [];
+    items.push(rowToOrderItem(row));
+    grouped.set(row.order_id, items);
+  }
+
+  return grouped;
 }
 
 async function rowToOrder(row: OrderRow, runtimeEnv?: RuntimeEnv): Promise<OrderRecord> {
@@ -522,10 +584,41 @@ async function listOrdersFromD1(runtimeEnv?: RuntimeEnv) {
     )
     .all<OrderRow>();
 
-  return await Promise.all(result.results.map(async (row) => await rowToOrder(row, runtimeEnv)));
+  const itemsByOrderId = await getOrderItemsByOrderIdsFromD1(
+    result.results.map((row) => row.id),
+    runtimeEnv,
+  );
+
+  return result.results.map((row) => ({
+    id: row.id,
+    orderNo: row.order_no,
+    lang: row.lang,
+    currency: row.currency,
+    fulfillment: row.fulfillment,
+    customerName: row.customer_name,
+    phone: row.phone,
+    address: row.address,
+    remark: row.remark,
+    itemsAmount: Number(row.items_amount),
+    deliveryFee: Number(row.delivery_fee),
+    totalAmount: Number(row.total_amount),
+    paymentStatus: row.payment_status,
+    orderStatus: row.order_status,
+    paymentMethod: row.payment_method || "card",
+    stripeCheckoutSessionId: row.stripe_checkout_session_id,
+    stripePaymentIntentId: row.stripe_payment_intent_id,
+    createdAt: row.created_at,
+    paidAt: row.paid_at,
+    updatedAt: row.updated_at,
+    items: itemsByOrderId.get(row.id) ?? [],
+    timeline: parseJson<OrderLifecycleEvent[]>(row.timeline_json, []),
+  }));
 }
 
 async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
+  const cached = getCachedValue(orderAlertsCache);
+  if (cached) return cached;
+
   const db = getDbBinding(runtimeEnv);
   if (!db) return [];
 
@@ -537,7 +630,7 @@ async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
     )
     .all<Pick<OrderRow, "id" | "order_no" | "payment_status" | "payment_method" | "order_status" | "created_at">>();
 
-  return result.results.map((row) => ({
+  const alerts = result.results.map((row) => ({
     id: row.id,
     orderNo: row.order_no,
     paymentStatus: row.payment_status,
@@ -545,6 +638,9 @@ async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
     orderStatus: row.order_status,
     createdAt: row.created_at,
   }));
+
+  orderAlertsCache = setCachedValue(alerts, ORDER_ALERTS_CACHE_TTL_MS);
+  return alerts;
 }
 
 async function saveOrderToD1(order: OrderRecord, runtimeEnv?: RuntimeEnv) {
@@ -604,6 +700,8 @@ async function saveOrderToD1(order: OrderRecord, runtimeEnv?: RuntimeEnv) {
       JSON.stringify(order.timeline),
     )
     .run();
+
+  invalidateOrderReadCache();
 
   await db.prepare(`DELETE FROM order_items WHERE order_id = ?`).bind(order.id).run();
 
@@ -791,11 +889,14 @@ async function saveOrderLogToD1(log: OrderLogRecord, runtimeEnv?: RuntimeEnv) {
 }
 
 export async function getProductsFromD1(runtimeEnv?: RuntimeEnv) {
+  const cached = getCachedValue(productsCache);
+  if (cached) return cached;
+
   const db = getDbBinding(runtimeEnv);
   if (!db) return [];
 
   const { results } = await db.prepare(`SELECT * FROM products ORDER BY sort_order ASC`).all<ProductRow>();
-  return results.map((row) => ({
+  const products = results.map((row) => ({
     id: row.id,
     categoryId: row.category_id,
     name: row.name,
@@ -809,6 +910,9 @@ export async function getProductsFromD1(runtimeEnv?: RuntimeEnv) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
+
+  productsCache = setCachedValue(products, CATALOG_CACHE_TTL_MS);
+  return products;
 }
 
 export async function getProductFromD1(productId: string, runtimeEnv?: RuntimeEnv) {
@@ -835,16 +939,22 @@ export async function getProductFromD1(productId: string, runtimeEnv?: RuntimeEn
 }
 
 export async function getCategoriesFromD1(runtimeEnv?: RuntimeEnv) {
+  const cached = getCachedValue(categoriesCache);
+  if (cached) return cached;
+
   const db = getDbBinding(runtimeEnv);
   if (!db) return [];
 
   const { results } = await db.prepare(`SELECT * FROM categories ORDER BY sort_order ASC`).all<CategoryRow>();
-  return results.map((row) => ({
+  const categories = results.map((row) => ({
     id: row.id,
     name: row.name,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
   }));
+
+  categoriesCache = setCachedValue(categories, CATALOG_CACHE_TTL_MS);
+  return categories;
 }
 
 export async function getOrderLogsFromD1(orderId: string, runtimeEnv?: RuntimeEnv) {
@@ -877,6 +987,8 @@ export async function updateSettingInD1(key: string, value: string, runtimeEnv?:
     )
     .bind(key, value, nowIso())
     .run();
+
+  invalidateCatalogCache();
 }
 
 export async function updateProductInD1(
@@ -917,6 +1029,8 @@ export async function updateProductInD1(
     .prepare(`UPDATE products SET ${updates.join(", ")} WHERE id = ?`)
     .bind(...params)
     .run();
+
+  invalidateCatalogCache();
 }
 
 export async function createProductInD1(
@@ -959,16 +1073,24 @@ export async function createProductInD1(
       timestamp,
     )
     .run();
-  
+
+  invalidateCatalogCache();
   return id;
 }
 
 export async function getSettingFromD1(key: string, runtimeEnv?: RuntimeEnv) {
+  const cached = settingsCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const db = getDbBinding(runtimeEnv);
   if (!db) return null;
 
   const row = await db.prepare(`SELECT value FROM settings WHERE key = ?`).bind(key).first<{ value: string }>();
-  return row ? row.value : null;
+  const value = row ? row.value : null;
+  settingsCache.set(key, setCachedValue(value, SETTINGS_CACHE_TTL_MS));
+  return value;
 }
 
 async function readJson<T>(key: string, runtimeEnv?: RuntimeEnv) {
@@ -1229,12 +1351,14 @@ async function saveWebhookEvent(event: WebhookEventRecord, runtimeEnv?: RuntimeE
 export async function getOrderById(orderId: string, runtimeEnv?: RuntimeEnv) {
   const fromD1 = await getOrderByIdFromD1(orderId, runtimeEnv);
   if (fromD1) return fromD1;
+  if (getDbBinding(runtimeEnv)) return null;
   return await readJson<OrderRecord>(orderKey(orderId), runtimeEnv);
 }
 
 export async function getOrderByOrderNo(orderNo: string, runtimeEnv?: RuntimeEnv) {
   const fromD1 = await getOrderByOrderNoFromD1(orderNo, runtimeEnv);
   if (fromD1) return fromD1;
+  if (getDbBinding(runtimeEnv)) return null;
 
   const orderId = await readText(orderNoKey(orderNo), runtimeEnv);
   if (!orderId) return null;
@@ -1283,6 +1407,7 @@ export async function listOrderAlerts(runtimeEnv?: RuntimeEnv) {
 export async function getPaymentByOrderId(orderId: string, runtimeEnv?: RuntimeEnv) {
   const fromD1 = await getPaymentByOrderIdFromD1(orderId, runtimeEnv);
   if (fromD1) return fromD1;
+  if (getDbBinding(runtimeEnv)) return null;
 
   const paymentId = await readText(paymentOrderKey(orderId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
@@ -1291,6 +1416,7 @@ export async function getPaymentByOrderId(orderId: string, runtimeEnv?: RuntimeE
 async function getPaymentBySessionId(sessionId: string, runtimeEnv?: RuntimeEnv) {
   const fromD1 = await getPaymentBySessionIdFromD1(sessionId, runtimeEnv);
   if (fromD1) return fromD1;
+  if (getDbBinding(runtimeEnv)) return null;
 
   const paymentId = await readText(paymentSessionKey(sessionId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
@@ -1299,6 +1425,7 @@ async function getPaymentBySessionId(sessionId: string, runtimeEnv?: RuntimeEnv)
 async function getPaymentByIntentId(paymentIntentId: string, runtimeEnv?: RuntimeEnv) {
   const fromD1 = await getPaymentByIntentIdFromD1(paymentIntentId, runtimeEnv);
   if (fromD1) return fromD1;
+  if (getDbBinding(runtimeEnv)) return null;
 
   const paymentId = await readText(paymentIntentKey(paymentIntentId), runtimeEnv);
   return paymentId ? await readJson<PaymentRecord>(paymentKey(paymentId), runtimeEnv) : null;
@@ -1481,9 +1608,12 @@ export async function startWebhookEvent(input: {
   rawPayload: string;
   runtimeEnv?: RuntimeEnv;
 }) {
+  const existingFromD1 = await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv);
   const existing =
-    (await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv)) ??
-    (await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
+    existingFromD1 ??
+    (getDbBinding(input.runtimeEnv)
+      ? null
+      : await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
   if (existing?.processed) {
     return { alreadyProcessed: true, event: existing };
   }
@@ -1515,9 +1645,12 @@ export async function finishWebhookEvent(input: {
   errorMessage?: string;
   runtimeEnv?: RuntimeEnv;
 }) {
+  const existingFromD1 = await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv);
   const existing =
-    (await getWebhookEventFromD1(input.provider, input.eventId, input.runtimeEnv)) ??
-    (await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
+    existingFromD1 ??
+    (getDbBinding(input.runtimeEnv)
+      ? null
+      : await readJson<WebhookEventRecord>(webhookKey(input.provider, input.eventId), input.runtimeEnv));
   if (!existing) return null;
 
   const next = {

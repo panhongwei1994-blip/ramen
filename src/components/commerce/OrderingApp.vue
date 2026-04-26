@@ -391,17 +391,10 @@ onMounted(async () => {
     }
   }
 
-  // Fetch from D1
+  // Load the storefront snapshot through one cached API call.
   try {
-    const [catRes, prodRes, setRes] = await Promise.all([
-      fetch("/api/categories"),
-      fetch("/api/products"),
-      fetch("/api/settings"),
-    ]);
-
-    const { categories: d1Cats } = await catRes.json();
-    const { products: d1Prods } = await prodRes.json();
-    const { isOpen } = await setRes.json();
+    const storefrontRes = await fetch("/api/storefront");
+    const { categories: d1Cats, products: d1Prods, isOpen } = await storefrontRes.json();
     
     shopOpen.value = isOpen;
 
