@@ -15,6 +15,9 @@ const orders = await listOrders(runtimeEnv, { statuses: HISTORY_ORDER_STATUSES }
 const queueHref = buildAdminHref("/admin/orders", Astro.url.searchParams, { lang: uiLang, mode: adminMode, viewAll: false });
 const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: adminMode, history: true });
 const format = (value: number) => formatPrice(value, "en");
+const rawPage = Number.parseInt(Astro.url.searchParams.get("page") ?? "1", 10);
+const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+const pageSize = 20;
 
 const copy = isZh
   ? {
@@ -36,6 +39,9 @@ const copy = isZh
       searchPlaceholder: "搜索订单号、姓名或电话",
       noMatches: "没有匹配的历史订单。",
       noOrders: "还没有历史订单。",
+      paginationPrev: "上一页",
+      paginationNext: "下一页",
+      paginationLabel: "页",
       guest: "游客结账",
       delivery: "外送",
       pickup: "自取",
@@ -62,6 +68,9 @@ const copy = isZh
       searchPlaceholder: "Search order, name, or phone",
       noMatches: "No matching historical orders.",
       noOrders: "No historical orders yet.",
+      paginationPrev: "Previous",
+      paginationNext: "Next",
+      paginationLabel: "Page",
       guest: "Guest checkout",
       delivery: "delivery",
       pickup: "pickup",
@@ -74,6 +83,20 @@ const sortOrdersByCreatedAtDesc = (left: OrderRecord, right: OrderRecord) =>
   new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 
 const historyOrders = orders.sort(sortOrdersByCreatedAtDesc);
+const totalPages = Math.max(1, Math.ceil(historyOrders.length / pageSize));
+const currentPage = Math.min(page, totalPages);
+const pagedOrders = historyOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+function buildHistoryHref(nextPage: number) {
+  const params = new URLSearchParams(Astro.url.searchParams);
+  if (nextPage <= 1) {
+    params.delete("page");
+  } else {
+    params.set("page", String(nextPage));
+  }
+  const query = params.toString();
+  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+}
 
 function statusLabel(value: string) {
   if (!isZh) {
@@ -164,9 +187,9 @@ function formatDate(value: string) {
         <p class="orders-meta">{historyOrders.length} {copy.orders}</p>
       </div>
 
-      {historyOrders.length ? (
+      {pagedOrders.length ? (
         <div class="order-list">
-          {historyOrders.map((order) => (
+          {pagedOrders.map((order) => (
             <a
               class:list={["card order-card", orderTone(order)]}
               href={orderDetailHref(order.orderNo)}
@@ -208,6 +231,25 @@ function formatDate(value: string) {
       ) : (
         <div class="card table-empty">{copy.noOrders}</div>
       )}
+      {totalPages > 1 ? (
+        <div class="history-pagination">
+          <a
+            class:list={["ghost-button page-link-button", { disabled: currentPage <= 1 }]}
+            href={currentPage > 1 ? buildHistoryHref(currentPage - 1) : undefined}
+            aria-disabled={currentPage <= 1 ? "true" : "false"}
+          >
+            {copy.paginationPrev}
+          </a>
+          <span class="pagination-meta">{copy.paginationLabel} {currentPage} / {totalPages}</span>
+          <a
+            class:list={["ghost-button page-link-button", { disabled: currentPage >= totalPages }]}
+            href={currentPage < totalPages ? buildHistoryHref(currentPage + 1) : undefined}
+            aria-disabled={currentPage >= totalPages ? "true" : "false"}
+          >
+            {copy.paginationNext}
+          </a>
+        </div>
+      ) : null}
     </section>
 
     <script is:inline>
@@ -292,6 +334,10 @@ function formatDate(value: string) {
     background: #ffffff;
     color: #174ea6;
   }
+  .page-link-button.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
   .order-toolbar {
     display: flex;
     justify-content: space-between;
@@ -355,6 +401,21 @@ function formatDate(value: string) {
   .orders-section {
     display: grid;
     gap: 16px;
+  }
+  .history-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .pagination-meta {
+    color: rgba(18,49,75,.62);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   .orders-head {
     display: flex;
@@ -504,6 +565,13 @@ function formatDate(value: string) {
     .order-toolbar {
       display: grid;
       justify-content: stretch;
+    }
+    .history-pagination {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+    .pagination-meta {
+      text-align: center;
     }
     .order-search {
       max-width: none;

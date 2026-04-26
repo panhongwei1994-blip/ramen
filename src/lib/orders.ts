@@ -304,7 +304,7 @@ const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["paid_waiting_accept", "cancelled"],
   paid_waiting_accept: ["accepted", "cancelled", "refunded"],
   accepted: ["cooking", "cancelled"],
-  cooking: ["delivering"],
+  cooking: ["delivering", "completed"],
   delivering: ["completed"],
   completed: [],
   cancelled: [],

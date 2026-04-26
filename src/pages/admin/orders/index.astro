@@ -573,6 +573,29 @@ function kitchenPrimaryActions(order: OrderRecord) {
         }
       };
 
+      const refreshQueue = async () => {
+        const currentSection = document.querySelector(".orders-section");
+        if (!(currentSection instanceof HTMLElement)) return false;
+
+        const response = await fetch(window.location.href, {
+          headers: {
+            "X-Requested-With": "queue-refresh",
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) return false;
+
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const nextSection = doc.querySelector(".orders-section");
+        if (!(nextSection instanceof HTMLElement)) return false;
+
+        currentSection.replaceWith(nextSection);
+        applyOrderFilters();
+        return true;
+      };
+
       const setAlertsEnabled = (enabled) => {
         alertsEnabled = enabled;
         if (alertButton instanceof HTMLButtonElement) {
@@ -660,7 +683,9 @@ function kitchenPrimaryActions(order: OrderRecord) {
             persistSeenOrders();
             notifyNewOrder(newOrders[0]);
             setStatus(`${copy.alertNew}: ${newOrders[0].orderNo}`);
-            window.setTimeout(() => window.location.reload(), alertRefreshDelayMs);
+            window.setTimeout(() => {
+              void refreshQueue().catch(() => window.location.reload());
+            }, alertRefreshDelayMs);
             return;
           }
 
@@ -741,7 +766,10 @@ function kitchenPrimaryActions(order: OrderRecord) {
             return;
           }
 
-          window.location.reload();
+          const refreshed = await refreshQueue().catch(() => false);
+          if (!refreshed) {
+            window.location.reload();
+          }
         } catch {
           window.alert(copy.updateError);
           inlineButton.disabled = false;
