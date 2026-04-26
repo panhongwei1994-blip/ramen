@@ -22,7 +22,7 @@ const copy = isZh
   ? {
       pageEyebrow: "后台订单",
       pageTitle: isKitchenMode ? "后厨出餐队列" : "订单",
-      pageCopy: isKitchenMode ? "给后厨看的精简出餐视图，只保留当前要处理的队列和关键操作。" : "给前台员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
+      pageCopy: isKitchenMode ? "后厨只从开始出餐往后处理，不显示接单步骤，只保留当前要出餐的队列和关键操作。" : "给前台员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
       langEn: "EN",
       langZh: "中文",
       modeFront: "前台模式",
@@ -58,21 +58,23 @@ const copy = isZh
       navSettings: "店铺设置",
       filterAll: "全部",
       filterNew: "新订单",
-      filterPreparing: "制作中",
-      filterReady: "已备好",
+      filterPreparing: "出餐中",
+      filterReady: "待完成",
       filterCompleted: "已完成",
       filterCancelled: "已取消",
       searchPlaceholder: isKitchenMode ? "搜索订单号或姓名" : "搜索订单号、姓名或电话",
       noMatches: "没有匹配的订单。",
       confirmCancel: "确认取消这笔订单？",
       kitchenQueue: "出餐队列",
-      kitchenEmpty: "当前没有待处理订单。",
+      kitchenEmpty: "当前没有待出餐订单。",
       kitchenQueuedAt: "下单时间",
+      kitchenStart: "开始出餐",
+      kitchenComplete: "完成出餐",
     }
   : {
       pageEyebrow: "Merchant Orders",
       pageTitle: isKitchenMode ? "Kitchen Queue" : "Orders",
-      pageCopy: isKitchenMode ? "A compact kitchen-first queue that keeps only the active tickets and the next action visible." : "A front-of-house queue for finding orders, scanning status, and moving service forward quickly.",
+      pageCopy: isKitchenMode ? "Kitchen mode starts at food prep, skips the acceptance step, and keeps only the live make-and-finish workflow visible." : "A front-of-house queue for finding orders, scanning status, and moving service forward quickly.",
       langEn: "EN",
       langZh: "中文",
       modeFront: "Front mode",
@@ -108,24 +110,30 @@ const copy = isZh
       navSettings: "Settings",
       filterAll: "All",
       filterNew: "New",
-      filterPreparing: "Preparing",
-      filterReady: "Ready",
+      filterPreparing: "In prep",
+      filterReady: "Finish",
       filterCompleted: "Completed",
       filterCancelled: "Cancelled",
       searchPlaceholder: isKitchenMode ? "Search order or name" : "Search order, name, or phone",
       noMatches: "No matching orders.",
       confirmCancel: "Cancel this order?",
       kitchenQueue: "Kitchen queue",
-      kitchenEmpty: "No active kitchen tickets.",
+      kitchenEmpty: "No kitchen tickets in progress.",
       kitchenQueuedAt: "Queued",
+      kitchenStart: "Start prep",
+      kitchenComplete: "Complete order",
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
+const kitchenVisibleStatuses = new Set(["accepted", "cooking", "delivering"]);
 const sortOrdersByCreatedAtAsc = (left: OrderRecord, right: OrderRecord) =>
   new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
 
-const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtAsc);
-const visibleFilterGroups = ["all", "new", "preparing", "ready"];
+const processingOrders = orders
+  .filter((order) => processingStatuses.has(order.orderStatus))
+  .filter((order) => !isKitchenMode || kitchenVisibleStatuses.has(order.orderStatus))
+  .sort(sortOrdersByCreatedAtAsc);
+const visibleFilterGroups = isKitchenMode ? ["all", "preparing", "ready"] : ["all", "new", "preparing", "ready"];
 const addressPreview = (order: OrderRecord) => {
   if (order.fulfillment === "pickup") return isZh ? "自取" : "Pickup";
   return order.address || (isZh ? "未填写地址" : "No address");
@@ -147,9 +155,9 @@ function statusLabel(value: string) {
   if (!isZh) {
     return ({
       paid_waiting_accept: "New",
-      accepted: "New",
-      cooking: "Preparing",
-      delivering: "Ready",
+      accepted: isKitchenMode ? "Queued" : "New",
+      cooking: isKitchenMode ? "In prep" : "Preparing",
+      delivering: isKitchenMode ? "Finish" : "Ready",
       completed: "Completed",
       cancelled: "Cancelled",
       refunded: "Refunded",
@@ -161,9 +169,9 @@ function statusLabel(value: string) {
   return ({
     pending_payment: "待支付",
     paid_waiting_accept: "新订单",
-    accepted: "新订单",
-    cooking: "制作中",
-    delivering: "已备好",
+    accepted: isKitchenMode ? "待出餐" : "新订单",
+    cooking: isKitchenMode ? "出餐中" : "制作中",
+    delivering: isKitchenMode ? "待完成" : "已备好",
     completed: "已完成",
     cancelled: "已取消",
     refunded: "已退款",
@@ -175,6 +183,10 @@ function statusLabel(value: string) {
 }
 
 function statusGroup(order: OrderRecord) {
+  if (isKitchenMode) {
+    if (order.orderStatus === "accepted" || order.orderStatus === "cooking") return "preparing";
+    if (order.orderStatus === "delivering") return "ready";
+  }
   if (order.orderStatus === "paid_waiting_accept" || order.orderStatus === "accepted") return "new";
   if (order.orderStatus === "cooking") return "preparing";
   if (order.orderStatus === "delivering") return "ready";
@@ -217,12 +229,20 @@ function queueActions(order: OrderRecord): QueueAction[] {
       ];
     case "accepted":
       return [
-        { label: copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Kitchen started preparing the order." } },
+        { label: isKitchenMode ? copy.kitchenStart : copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Kitchen started preparing the order." } },
         { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
       ];
     case "cooking":
       return [
-        { label: copy.actionDelivery, endpoint: "status", method: "POST", payload: { status: "delivering", message: "Order marked ready." } },
+        {
+          label: isKitchenMode ? copy.kitchenComplete : copy.actionDelivery,
+          endpoint: "status",
+          method: "POST",
+          payload: {
+            status: isKitchenMode ? "completed" : "delivering",
+            message: isKitchenMode ? "Kitchen completed the order." : "Order marked ready.",
+          },
+        },
       ];
     case "delivering":
       return [

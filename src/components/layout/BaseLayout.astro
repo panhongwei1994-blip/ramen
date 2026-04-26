@@ -217,6 +217,35 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
         }
         window.setTimeout(() => showInstallModal("ios"), 1800);
       });
+
+      const syncHeaderWithMenu = () => {
+        const menu = document.getElementById("order-menu");
+        const categoryRow = document.querySelector(".category-row");
+        if (!menu && !categoryRow) return false;
+
+        const target = categoryRow instanceof HTMLElement ? categoryRow : menu;
+        if (!(target instanceof HTMLElement)) return false;
+
+        const rect = target.getBoundingClientRect();
+        const menuActive = rect.top <= 124 && rect.bottom > 96;
+        document.body.dataset.menuFocus = menuActive ? "true" : "false";
+        return true;
+      };
+
+      let menuHeaderBound = false;
+      const bindMenuHeaderSync = () => {
+        if (menuHeaderBound) return;
+        if (!syncHeaderWithMenu()) return;
+        menuHeaderBound = true;
+        window.addEventListener("scroll", syncHeaderWithMenu, { passive: true });
+        window.addEventListener("resize", syncHeaderWithMenu);
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        bindMenuHeaderSync();
+        window.setTimeout(bindMenuHeaderSync, 600);
+        window.setTimeout(bindMenuHeaderSync, 1500);
+      });
     </script>
   </body>
 </html>
@@ -226,6 +255,12 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
     position: fixed;
     inset: 16px 16px auto;
     z-index: 30;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  body[data-menu-focus="true"] .site-header {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-12px);
   }
   .header-shell {
     display: flex;

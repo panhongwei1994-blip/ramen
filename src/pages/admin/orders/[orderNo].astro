@@ -96,6 +96,8 @@ const copy = isZh
       actionCooking: "开始制作",
       actionDelivery: "标记备好",
       actionComplete: "完成",
+      kitchenStart: "开始出餐",
+      kitchenComplete: "完成出餐",
       actionCancel: "取消订单",
       confirmCancel: "确认取消这笔订单？",
     }
@@ -139,6 +141,8 @@ const copy = isZh
       actionCooking: "Start preparing",
       actionDelivery: "Mark ready",
       actionComplete: "Complete",
+      kitchenStart: "Start prep",
+      kitchenComplete: "Complete order",
       actionCancel: "Cancel order",
       confirmCancel: "Cancel this order?",
     };
@@ -153,12 +157,20 @@ function actionsForOrder(currentOrder: typeof order): DetailAction[] {
       ];
     case "accepted":
       return [
-        { label: copy.actionCooking, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Kitchen started preparing the order." } },
+        { label: adminMode === "kitchen" ? copy.kitchenStart : copy.actionCooking, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Kitchen started preparing the order." } },
         { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const, danger: true },
       ];
     case "cooking":
       return [
-        { label: copy.actionDelivery, endpoint: "status", method: "POST" as const, payload: { status: "delivering", message: "Order marked ready." } },
+        {
+          label: adminMode === "kitchen" ? copy.kitchenComplete : copy.actionDelivery,
+          endpoint: "status",
+          method: "POST" as const,
+          payload: {
+            status: adminMode === "kitchen" ? "completed" : "delivering",
+            message: adminMode === "kitchen" ? "Kitchen completed the order." : "Order marked ready.",
+          },
+        },
       ];
     case "delivering":
       return [
@@ -175,9 +187,9 @@ function statusLabel(value: string) {
   if (!isZh) {
     return ({
       paid_waiting_accept: "New",
-      accepted: "New",
-      cooking: "Preparing",
-      delivering: "Ready",
+      accepted: adminMode === "kitchen" ? "Queued" : "New",
+      cooking: adminMode === "kitchen" ? "In prep" : "Preparing",
+      delivering: adminMode === "kitchen" ? "Finish" : "Ready",
       completed: "Completed",
       cancelled: "Cancelled",
       refunded: "Refunded",
@@ -189,9 +201,9 @@ function statusLabel(value: string) {
   return ({
     pending_payment: "待支付",
     paid_waiting_accept: "新订单",
-    accepted: "新订单",
-    cooking: "制作中",
-    delivering: "已备好",
+    accepted: adminMode === "kitchen" ? "待出餐" : "新订单",
+    cooking: adminMode === "kitchen" ? "出餐中" : "制作中",
+    delivering: adminMode === "kitchen" ? "待完成" : "已备好",
     completed: "已完成",
     cancelled: "已取消",
     refunded: "已退款",
