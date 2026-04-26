@@ -1,0 +1,315 @@
+---
+import AdminHeader from "@/components/admin/AdminHeader.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
+import { formatPrice } from "@/data/site";
+import { getRuntimeEnv, listOrders } from "@/lib/orders";
+import { buildAdminHref, buildOrderDetailHref, getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
+
+export const prerender = false;
+
+const uiLang = getAdminLangFromUrl(Astro.url);
+const isZh = uiLang === "zh";
+const adminMode = getAdminModeFromUrl(Astro.url);
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+const orders = await listOrders(runtimeEnv, { statuses: ["delivering"] });
+const deliveryOrders = orders
+  .filter((order) => order.fulfillment === "delivery")
+  .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+const queueHref = buildAdminHref("/admin/orders", Astro.url.searchParams, { lang: uiLang, mode: "front", viewAll: false });
+const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: "front" });
+const format = (value: number) => formatPrice(value, "en");
+
+const copy = isZh
+  ? {
+      pageEyebrow: "外送完成",
+      pageTitle: "配送中订单",
+      pageCopy: "这个页面只给外送人员或前台收尾使用。后厨出餐结束后，外卖单在这里确认送达完成。",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
+      backToQueue: "返回订单",
+      noOrders: "当前没有配送中的外卖订单。",
+      delivering: "配送中",
+      markDelivered: "确认送达",
+      delivery: "外送",
+      items: "件菜品",
+      guest: "游客结账",
+      address: "地址",
+      phone: "电话",
+      total: "总额",
+      updating: "更新中...",
+      updated: "已确认送达",
+      requestFailed: "操作失败",
+      viewDetails: "查看详情",
+    }
+  : {
+      pageEyebrow: "Delivery Board",
+      pageTitle: "Orders Out for Delivery",
+      pageCopy: "This board is for couriers or the front desk to close delivery orders after the kitchen has already handed them off.",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
+      backToQueue: "Back to orders",
+      noOrders: "No delivery orders are currently in transit.",
+      delivering: "Delivering",
+      markDelivered: "Mark delivered",
+      delivery: "Delivery",
+      items: "items",
+      guest: "Guest checkout",
+      address: "Address",
+      phone: "Phone",
+      total: "Total",
+      updating: "Updating...",
+      updated: "Marked delivered",
+      requestFailed: "Request failed",
+      viewDetails: "View details",
+    };
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(isZh ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+---
+
+<AdminLayout lang={uiLang} title={isZh ? "外送完成 | Sumi Ramen" : "Delivery Board | Sumi Ramen Admin"}>
+  <section class="container admin-shell" data-ui-lang={uiLang}>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="orders"
+      eyebrow={copy.pageEyebrow}
+      title={copy.pageTitle}
+      copy={copy.pageCopy}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+    >
+      <a slot="actions" class="ghost-button back-button" href={queueHref}>{copy.backToQueue}</a>
+    </AdminHeader>
+
+    {deliveryOrders.length ? (
+      <div class="delivery-grid">
+        {deliveryOrders.map((order) => (
+          <article class="card delivery-card" data-order-no={order.orderNo}>
+            <div class="delivery-head">
+              <div>
+                <p class="order-no">{order.orderNo}</p>
+                <h3>{order.customerName || copy.guest}</h3>
+              </div>
+              <span class="status-pill">{copy.delivering}</span>
+            </div>
+            <p class="delivery-meta">{copy.delivery} · {order.items.length} {copy.items} · {formatDate(order.createdAt)}</p>
+            <div class="delivery-block">
+              <span>{copy.address}</span>
+              <strong>{order.address || "-"}</strong>
+            </div>
+            <div class="delivery-block">
+              <span>{copy.phone}</span>
+              <strong>{order.phone || "-"}</strong>
+            </div>
+            <div class="delivery-block">
+              <span>{copy.total}</span>
+              <strong>{format(order.totalAmount)}</strong>
+            </div>
+            <div class="delivery-actions">
+              <a class="detail-link" href={orderDetailHref(order.orderNo)}>{copy.viewDetails}</a>
+              <button
+                class="primary-button delivery-complete"
+                type="button"
+                data-endpoint="status"
+                data-payload='{"status":"completed","message":"Delivery completed."}'
+              >
+                {copy.markDelivered}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <div class="card table-empty">{copy.noOrders}</div>
+    )}
+
+    <div class="notice" id="delivery-notice"></div>
+
+    <script
+      is:inline
+      type="application/json"
+      id="delivery-copy"
+      set:html={JSON.stringify({
+        updating: copy.updating,
+        updated: copy.updated,
+        requestFailed: copy.requestFailed,
+      })}
+    />
+
+    <script is:inline>
+      const notice = document.getElementById("delivery-notice");
+      const copyNode = document.getElementById("delivery-copy");
+      const copy = JSON.parse(copyNode?.textContent || "{}");
+
+      document.addEventListener("click", async (event) => {
+        const target = event.target instanceof Element ? event.target.closest(".delivery-complete") : null;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        const card = target.closest("[data-order-no]");
+        const orderNo = card?.getAttribute("data-order-no");
+        if (!orderNo) return;
+
+        const endpoint = target.dataset.endpoint;
+        const payload = target.dataset.payload ? JSON.parse(target.dataset.payload) : undefined;
+        if (!endpoint) return;
+
+        if (notice) notice.textContent = copy.updating;
+        target.disabled = true;
+
+        try {
+          const response = await fetch(`/api/admin/orders/${orderNo}/${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload ? JSON.stringify(payload) : undefined,
+          });
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            if (notice) notice.textContent = data.error || copy.requestFailed;
+            target.disabled = false;
+            return;
+          }
+
+          if (card instanceof HTMLElement) {
+            card.remove();
+          }
+          if (notice) notice.textContent = copy.updated;
+          if (!document.querySelector(".delivery-card")) {
+            window.location.reload();
+          }
+        } catch {
+          if (notice) notice.textContent = copy.requestFailed;
+          target.disabled = false;
+        }
+      });
+    </script>
+  </section>
+</AdminLayout>
+
+<style>
+  .admin-shell {
+    padding: 32px 0 88px;
+    color: var(--admin-text);
+  }
+  .delivery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .delivery-card {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,251,255,.98)), #fff;
+    box-shadow: 0 18px 42px rgba(15,76,153,.08);
+  }
+  .delivery-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .order-no {
+    margin: 0 0 10px;
+    color: #2d6cdf;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .delivery-card h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    line-height: 1.02;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(45,108,223,.08);
+    border: 1px solid rgba(45,108,223,.16);
+    color: #174ea6;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .delivery-meta {
+    margin: 0;
+    color: rgba(18,49,75,.64);
+  }
+  .delivery-block {
+    display: grid;
+    gap: 4px;
+  }
+  .delivery-block span {
+    color: rgba(18,49,75,.56);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .delivery-block strong {
+    color: #12314b;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .delivery-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .detail-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(45,108,223,.14);
+    color: #174ea6;
+    font-weight: 700;
+    background: rgba(45,108,223,.03);
+  }
+  .back-button {
+    background: #fff;
+    border-color: rgba(45,108,223,.16);
+    color: #174ea6;
+  }
+  .notice {
+    margin-top: 16px;
+    color: #174ea6;
+    font-weight: 700;
+  }
+  @media (max-width: 900px) {
+    .delivery-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

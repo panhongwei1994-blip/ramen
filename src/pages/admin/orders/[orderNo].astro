@@ -98,6 +98,7 @@ const copy = isZh
       actionComplete: "完成",
       kitchenStart: "开始出餐",
       kitchenComplete: "完成出餐",
+      deliveryComplete: "确认送达",
       actionCancel: "取消订单",
       confirmCancel: "确认取消这笔订单？",
     }
@@ -143,6 +144,7 @@ const copy = isZh
       actionComplete: "Complete",
       kitchenStart: "Start prep",
       kitchenComplete: "Complete order",
+      deliveryComplete: "Mark delivered",
       actionCancel: "Cancel order",
       confirmCancel: "Cancel this order?",
     };
@@ -152,9 +154,7 @@ function actionsForOrder(currentOrder: typeof order): DetailAction[] {
   switch (currentOrder.orderStatus) {
     case "paid_waiting_accept":
       return [
-        adminMode === "kitchen"
-          ? { label: copy.kitchenStart, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Kitchen started preparing the order." } }
-          : { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
+        { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
         { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const, danger: true },
       ];
     case "accepted":
@@ -165,18 +165,18 @@ function actionsForOrder(currentOrder: typeof order): DetailAction[] {
     case "cooking":
       return [
         {
-          label: adminMode === "kitchen" ? copy.kitchenComplete : copy.actionDelivery,
+          label: currentOrder.fulfillment === "delivery" ? copy.actionDelivery : (adminMode === "kitchen" ? copy.kitchenComplete : copy.actionComplete),
           endpoint: "status",
           method: "POST" as const,
           payload: {
-            status: adminMode === "kitchen" ? "completed" : "delivering",
-            message: adminMode === "kitchen" ? "Kitchen completed the order." : "Order marked ready.",
+            status: currentOrder.fulfillment === "delivery" ? "delivering" : "completed",
+            message: currentOrder.fulfillment === "delivery" ? "Order marked ready for delivery." : "Order marked as completed.",
           },
         },
       ];
     case "delivering":
       return [
-        { label: copy.actionComplete, endpoint: "status", method: "POST" as const, payload: { status: "completed", message: "Order marked as completed." } },
+        { label: copy.deliveryComplete, endpoint: "status", method: "POST" as const, payload: { status: "completed", message: "Delivery completed." } },
       ];
     default:
       return [];
@@ -188,7 +188,7 @@ const actions = actionsForOrder(order);
 function statusLabel(value: string) {
   if (!isZh) {
     return ({
-      paid_waiting_accept: adminMode === "kitchen" ? "Queued" : "New",
+      paid_waiting_accept: "New",
       accepted: adminMode === "kitchen" ? "Queued" : "New",
       cooking: adminMode === "kitchen" ? "In prep" : "Preparing",
       delivering: adminMode === "kitchen" ? "Finish" : "Ready",
@@ -202,7 +202,7 @@ function statusLabel(value: string) {
   }
   return ({
     pending_payment: "待支付",
-    paid_waiting_accept: adminMode === "kitchen" ? "待出餐" : "新订单",
+    paid_waiting_accept: "新订单",
     accepted: adminMode === "kitchen" ? "待出餐" : "新订单",
     cooking: adminMode === "kitchen" ? "出餐中" : "制作中",
     delivering: adminMode === "kitchen" ? "待完成" : "已备好",
@@ -216,7 +216,7 @@ function statusLabel(value: string) {
 }
 
 function tone(value: string) {
-  if (value === "paid_waiting_accept") return adminMode === "kitchen" ? "active" : "urgent";
+  if (value === "paid_waiting_accept") return "urgent";
   if (value === "accepted" || value === "cooking" || value === "delivering") return "active";
   if (value === "completed") return "done";
   if (value === "cancelled" || value === "refunded") return "muted";

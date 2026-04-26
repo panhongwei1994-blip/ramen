@@ -302,7 +302,7 @@ type OrderLogRow = {
 
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ["paid_waiting_accept", "cancelled"],
-  paid_waiting_accept: ["accepted", "cooking", "cancelled", "refunded"],
+  paid_waiting_accept: ["accepted", "cancelled", "refunded"],
   accepted: ["cooking", "cancelled"],
   cooking: ["delivering", "completed"],
   delivering: ["completed"],
@@ -1527,7 +1527,7 @@ export async function createOrder(input: CreateOrderInput & { runtimeEnv?: Runti
     deliveryFee,
     totalAmount,
     paymentStatus: "unpaid",
-    orderStatus: input.paymentMethod === "cash" ? "accepted" : "pending_payment",
+    orderStatus: input.paymentMethod === "cash" ? "paid_waiting_accept" : "pending_payment",
     paymentMethod: input.paymentMethod || "card",
     stripeCheckoutSessionId: "",
     stripePaymentIntentId: "",
