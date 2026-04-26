@@ -22,7 +22,7 @@ const copy = isZh
   ? {
       pageEyebrow: "后台订单",
       pageTitle: isKitchenMode ? "后厨出餐队列" : "订单",
-      pageCopy: isKitchenMode ? "后厨只从开始出餐往后处理，不显示接单步骤，只保留当前要出餐的队列和关键操作。" : "给前台员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
+      pageCopy: isKitchenMode ? "后厨直接看到所有待处理订单。刷卡单支付成功后自动进队列，现金单提交后也直接进队列，由前台或后厨任一人继续推进。" : "给前台员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
       langEn: "EN",
       langZh: "中文",
       modeFront: "前台模式",
@@ -74,7 +74,7 @@ const copy = isZh
   : {
       pageEyebrow: "Merchant Orders",
       pageTitle: isKitchenMode ? "Kitchen Queue" : "Orders",
-      pageCopy: isKitchenMode ? "Kitchen mode starts at food prep, skips the acceptance step, and keeps only the live make-and-finish workflow visible." : "A front-of-house queue for finding orders, scanning status, and moving service forward quickly.",
+      pageCopy: isKitchenMode ? "Kitchen mode shows every actionable order directly. Card orders enter after payment confirmation, and cash orders enter the queue immediately after submission." : "A front-of-house queue for finding orders, scanning status, and moving service forward quickly.",
       langEn: "EN",
       langZh: "中文",
       modeFront: "Front mode",
@@ -125,7 +125,7 @@ const copy = isZh
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
-const kitchenVisibleStatuses = new Set(["accepted", "cooking", "delivering"]);
+const kitchenVisibleStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
 const sortOrdersByCreatedAtAsc = (left: OrderRecord, right: OrderRecord) =>
   new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
 
@@ -154,7 +154,7 @@ type QueueAction = {
 function statusLabel(value: string) {
   if (!isZh) {
     return ({
-      paid_waiting_accept: "New",
+      paid_waiting_accept: isKitchenMode ? "Queued" : "New",
       accepted: isKitchenMode ? "Queued" : "New",
       cooking: isKitchenMode ? "In prep" : "Preparing",
       delivering: isKitchenMode ? "Finish" : "Ready",
@@ -168,7 +168,7 @@ function statusLabel(value: string) {
   }
   return ({
     pending_payment: "待支付",
-    paid_waiting_accept: "新订单",
+    paid_waiting_accept: isKitchenMode ? "待出餐" : "新订单",
     accepted: isKitchenMode ? "待出餐" : "新订单",
     cooking: isKitchenMode ? "出餐中" : "制作中",
     delivering: isKitchenMode ? "待完成" : "已备好",
@@ -184,7 +184,7 @@ function statusLabel(value: string) {
 
 function statusGroup(order: OrderRecord) {
   if (isKitchenMode) {
-    if (order.orderStatus === "accepted" || order.orderStatus === "cooking") return "preparing";
+    if (order.orderStatus === "paid_waiting_accept" || order.orderStatus === "accepted" || order.orderStatus === "cooking") return "preparing";
     if (order.orderStatus === "delivering") return "ready";
   }
   if (order.orderStatus === "paid_waiting_accept" || order.orderStatus === "accepted") return "new";
@@ -213,7 +213,8 @@ function formatPreviewQuantity(quantity: number, subtotal: number) {
 }
 
 function orderTone(order: OrderRecord) {
-  if (order.orderStatus === "pending_payment" || order.orderStatus === "paid_waiting_accept") return "urgent";
+  if (order.orderStatus === "pending_payment") return "urgent";
+  if (order.orderStatus === "paid_waiting_accept") return isKitchenMode ? "active" : "urgent";
   if (order.orderStatus === "accepted" || order.orderStatus === "cooking" || order.orderStatus === "delivering") return "active";
   if (order.orderStatus === "completed") return "done";
   if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
@@ -223,10 +224,20 @@ function orderTone(order: OrderRecord) {
 function queueActions(order: OrderRecord): QueueAction[] {
   switch (order.orderStatus) {
     case "paid_waiting_accept":
-      return [
-        { label: copy.actionAccept, endpoint: "accept", method: "POST" },
-        { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
-      ];
+      return isKitchenMode
+        ? [
+            {
+              label: copy.kitchenStart,
+              endpoint: "status",
+              method: "POST",
+              payload: { status: "cooking", message: "Kitchen started preparing the order." },
+            },
+            { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
+          ]
+        : [
+            { label: copy.actionAccept, endpoint: "accept", method: "POST" },
+            { label: copy.actionCancel, endpoint: "cancel", method: "POST", tone: "danger" },
+          ];
     case "accepted":
       return [
         { label: isKitchenMode ? copy.kitchenStart : copy.actionCooking, endpoint: "status", method: "POST", payload: { status: "cooking", message: "Kitchen started preparing the order." } },

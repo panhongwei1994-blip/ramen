@@ -152,7 +152,9 @@ function actionsForOrder(currentOrder: typeof order): DetailAction[] {
   switch (currentOrder.orderStatus) {
     case "paid_waiting_accept":
       return [
-        { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
+        adminMode === "kitchen"
+          ? { label: copy.kitchenStart, endpoint: "status", method: "POST" as const, payload: { status: "cooking", message: "Kitchen started preparing the order." } }
+          : { label: copy.actionAccept, endpoint: "accept", method: "POST" as const },
         { label: copy.actionCancel, endpoint: "cancel", method: "POST" as const, danger: true },
       ];
     case "accepted":
@@ -186,7 +188,7 @@ const actions = actionsForOrder(order);
 function statusLabel(value: string) {
   if (!isZh) {
     return ({
-      paid_waiting_accept: "New",
+      paid_waiting_accept: adminMode === "kitchen" ? "Queued" : "New",
       accepted: adminMode === "kitchen" ? "Queued" : "New",
       cooking: adminMode === "kitchen" ? "In prep" : "Preparing",
       delivering: adminMode === "kitchen" ? "Finish" : "Ready",
@@ -200,7 +202,7 @@ function statusLabel(value: string) {
   }
   return ({
     pending_payment: "待支付",
-    paid_waiting_accept: "新订单",
+    paid_waiting_accept: adminMode === "kitchen" ? "待出餐" : "新订单",
     accepted: adminMode === "kitchen" ? "待出餐" : "新订单",
     cooking: adminMode === "kitchen" ? "出餐中" : "制作中",
     delivering: adminMode === "kitchen" ? "待完成" : "已备好",
@@ -214,7 +216,7 @@ function statusLabel(value: string) {
 }
 
 function tone(value: string) {
-  if (value === "paid_waiting_accept") return "urgent";
+  if (value === "paid_waiting_accept") return adminMode === "kitchen" ? "active" : "urgent";
   if (value === "accepted" || value === "cooking" || value === "delivering") return "active";
   if (value === "completed") return "done";
   if (value === "cancelled" || value === "refunded") return "muted";

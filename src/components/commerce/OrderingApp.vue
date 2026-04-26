@@ -703,32 +703,46 @@ watch(
 }
 .category-row {
   position: sticky;
-  top: 96px;
-  z-index: 8;
+  top: 18px;
+  z-index: 12;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow: auto;
-  padding: 12px;
-  border-radius: 28px;
-  margin-bottom: 18px;
+  padding: 8px;
+  border-radius: 18px;
+  margin: 0 0 14px;
+  background:
+    linear-gradient(180deg, rgba(24,18,16,.94), rgba(15,11,10,.9)),
+    rgba(15,11,10,.92);
+  border: 1px solid rgba(241,182,107,.12);
+  box-shadow: 0 14px 30px rgba(0,0,0,.24);
+  backdrop-filter: blur(14px);
 }
 .category-chip {
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.1);
-  background: rgba(255,255,255,.04);
-  color: rgba(246,239,230,.72);
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+  color: rgba(246,239,230,.78);
   white-space: nowrap;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 11px;
+  font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  letter-spacing: .04em;
+  text-transform: none;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
 }
 .category-chip.active {
-  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
-  color: #160f08;
+  background: linear-gradient(135deg, rgba(241,182,107,.95), rgba(255,217,146,.98));
+  color: #1a100b;
+  border-color: rgba(255,217,146,.68);
+  box-shadow: 0 8px 18px rgba(195,75,45,.22);
+}
+.category-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(241,182,107,.24);
+  color: #fff4e6;
 }
 .menu-grid {
   display: grid;
@@ -1496,7 +1510,7 @@ textarea {
 
 @media (max-width: 1080px) {
   .category-row {
-    top: 90px;
+    top: 14px;
   }
   .menu-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1504,7 +1518,9 @@ textarea {
 }
 @media (max-width: 760px) {
   .category-row {
-    top: 84px;
+    top: 10px;
+    padding: 7px;
+    border-radius: 16px;
   }
   .embedded-overlay {
     display: block;
@@ -1531,6 +1547,11 @@ textarea {
     margin-top: 0;
     flex-direction: column;
     align-items: stretch;
+  }
+  .category-chip {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 11.5px;
   }
   .embedded-modal {
     position: fixed;
