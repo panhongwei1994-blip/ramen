@@ -355,12 +355,20 @@ function queueActions(order: OrderRecord): QueueAction[] {
                   <p class="order-subcopy kitchen-subcopy">
                     {copy.kitchenQueuedAt} · {formatDate(order.createdAt)}
                   </p>
+                  <div class="order-rail kitchen-rail">
+                    <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
+                    <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                      {statusLabel(order.paymentStatus)}
+                    </span>
+                  </div>
                   {order.remark ? <p class="order-note">{order.remark}</p> : null}
                   <div class="order-preview kitchen-preview">
                     {order.items.map((item) => (
                       <div class="preview-item kitchen-preview-item">
+                        <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
                         <div class="preview-copy">
                           <strong>{item.quantity}× {item.productName}</strong>
+                          <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
                           {item.addOns.length ? (
                             <p class="preview-addon kitchen-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
                           ) : null}
@@ -1095,6 +1103,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .kitchen-preview {
     gap: 8px;
   }
+  .kitchen-rail {
+    justify-content: start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
   .preview-item {
     display: grid;
     grid-template-columns: 56px 1fr;
@@ -1115,9 +1128,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
     gap: 4px;
   }
   .kitchen-preview-item {
-    grid-template-columns: 1fr;
-    gap: 0;
+    grid-template-columns: 56px 1fr;
+    gap: 12px;
     padding-top: 8px;
+    align-items: start;
   }
   .preview-copy strong {
     font-size: 0.98rem;
@@ -1148,6 +1162,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .kitchen-addon {
     padding-left: 0;
     border-radius: 10px;
+  }
+  .kitchen-preview-item .preview-copy {
+    gap: 3px;
   }
   .preview-more {
     margin: 0;
