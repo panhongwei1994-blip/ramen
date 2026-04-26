@@ -156,9 +156,12 @@ const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking"
 const completedStatuses = new Set(["completed"]);
 const closedStatuses = new Set(["cancelled", "refunded"]);
 
-const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus));
-const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus));
-const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus));
+const sortOrdersByCreatedAt = (left: OrderRecord, right: OrderRecord) =>
+  new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+
+const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
+const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
+const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
 
 const completedOrders = viewAll ? allCompletedOrders : allCompletedOrders.slice(0, 5);
 const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
@@ -272,6 +275,14 @@ function queueActions(order: OrderRecord): QueueAction[] {
       return [];
   }
 }
+
+function kitchenCancelAction(order: OrderRecord) {
+  return queueActions(order).find((action) => action.endpoint === "cancel");
+}
+
+function kitchenPrimaryActions(order: OrderRecord) {
+  return queueActions(order).filter((action) => action.endpoint !== "cancel");
+}
 ---
 
 <AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sumi Ramen" : "Orders | Sumi Ramen Admin"}>
@@ -335,131 +346,151 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
       {processingOrders.length ? (
         <div class:list={["order-list", { "kitchen-grid": isKitchenMode }]}>
-          {processingOrders.map((order) => (
-            <article
-              class:list={["card order-card", orderTone(order), { "kitchen-card": isKitchenMode }]}
-              data-order-id={order.id}
-              data-order-no={order.orderNo}
-              data-status-group={statusGroup(order)}
-              data-search={isKitchenMode ? kitchenSearchPreview(order) : `${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
-            >
-              {isKitchenMode ? (
-                <>
-                  <div class="kitchen-card-top">
-                    <div>
-                      <p class="order-no">{order.orderNo}</p>
-                      <h3>{order.customerName || copy.guest}</h3>
-                    </div>
-                    <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
-                  </div>
-                  <p class="order-subcopy kitchen-subcopy">
-                    {copy.kitchenQueuedAt} · {formatDate(order.createdAt)}
-                  </p>
-                  <div class="order-rail kitchen-rail">
-                    <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
-                    <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
-                      {statusLabel(order.paymentStatus)}
-                    </span>
-                  </div>
-                  {order.remark ? <p class="order-note">{order.remark}</p> : null}
-                  <div class="order-preview kitchen-preview">
-                    {order.items.map((item) => (
-                      <div class="preview-item kitchen-preview-item">
-                        <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
-                        <div class="preview-copy">
-                          <strong>{item.quantity}× {item.productName}</strong>
-                          <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
-                          {item.addOns.length ? (
-                            <p class="preview-addon kitchen-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
-                          ) : null}
-                          {item.note ? <p class="preview-note">{item.note}</p> : null}
-                        </div>
+          {processingOrders.map((order) => {
+            const cancelAction = kitchenCancelAction(order);
+            const primaryActions = kitchenPrimaryActions(order);
+
+            return (
+              <article
+                class:list={["card order-card", orderTone(order), { "kitchen-card": isKitchenMode }]}
+                data-order-id={order.id}
+                data-order-no={order.orderNo}
+                data-status-group={statusGroup(order)}
+                data-search={isKitchenMode ? kitchenSearchPreview(order) : `${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
+              >
+                {isKitchenMode ? (
+                  <>
+                    <div class="kitchen-card-top">
+                      <div>
+                        <p class="order-no">{order.orderNo}</p>
+                        <h3>{order.customerName || copy.guest}</h3>
                       </div>
-                    ))}
-                  </div>
-                  <div class="order-actions kitchen-actions">
-                    {queueActions(order).map((action) => (
-                      <button
-                        class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
-                        type="button"
-                        data-inline-action="true"
-                        data-order-no={order.orderNo}
-                        data-endpoint={action.endpoint}
-                        data-method={action.method}
-                        data-payload={action.payload ? JSON.stringify(action.payload) : ""}
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div class="order-main">
-                    <div>
-                      <p class="order-no">{order.orderNo}</p>
-                      <h3>
-                        <span>{order.customerName || copy.guest}</span>
-                        <small>{addressPreview(order)}</small>
-                      </h3>
-                      <p class="order-subcopy">
-                        {itemCountLabel(order.items.length)}
-                        {" · "}
-                        <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
-                        {" · "}
-                        {order.phone || "No phone"}
-                        {" · "}
-                        {formatDate(order.createdAt)}
-                      </p>
-                      {order.remark ? <p class="order-note">{order.remark}</p> : null}
-                    </div>
-                    <div class="order-total">{format(order.totalAmount)}</div>
-                  </div>
-                  <div class="order-preview">
-                    {order.items.slice(0, 3).map((item) => (
-                      <div class="preview-item">
-                        <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
-                        <div class="preview-copy">
-                          <strong>{item.productName}</strong>
-                          <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
-                          {item.addOns.length ? (
-                            <p class="preview-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
-                          ) : null}
-                          {item.note ? <p class="preview-note">{item.note}</p> : null}
-                        </div>
+                      <div class="kitchen-status-row">
+                        <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                        {cancelAction ? (
+                          <button
+                            class="queue-action danger kitchen-cancel-button"
+                            type="button"
+                            data-inline-action="true"
+                            data-order-no={order.orderNo}
+                            data-endpoint={cancelAction.endpoint}
+                            data-method={cancelAction.method}
+                            data-payload={cancelAction.payload ? JSON.stringify(cancelAction.payload) : ""}
+                          >
+                            {cancelAction.label}
+                          </button>
+                        ) : null}
                       </div>
-                    ))}
-                    {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} {copy.moreItems}</p> : null}
-                  </div>
-                  <div class="order-rail">
-                    <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
-                    <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
-                      {statusLabel(order.paymentStatus)}
-                    </span>
-                    <span class:list={["method-pill", order.paymentMethod]}>
-                      {order.paymentMethod === "cash" ? copy.cash : copy.card}
-                    </span>
-                  </div>
-                  <div class="order-actions">
-                    <a class="detail-link" href={orderDetailHref(order.orderNo)}>{copy.viewDetails}</a>
-                    {queueActions(order).map((action) => (
-                      <button
-                        class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
-                        type="button"
-                        data-inline-action="true"
-                        data-order-no={order.orderNo}
-                        data-endpoint={action.endpoint}
-                        data-method={action.method}
-                        data-payload={action.payload ? JSON.stringify(action.payload) : ""}
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </article>
-          ))}
+                    </div>
+                    <p class="order-subcopy kitchen-subcopy">
+                      {copy.kitchenQueuedAt} · {formatDate(order.createdAt)}
+                    </p>
+                    <div class="order-rail kitchen-rail">
+                      <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
+                      <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                        {statusLabel(order.paymentStatus)}
+                      </span>
+                    </div>
+                    {order.remark ? <p class="order-note">{order.remark}</p> : null}
+                    <div class="order-preview kitchen-preview">
+                      {order.items.map((item) => (
+                        <div class="preview-item kitchen-preview-item">
+                          <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
+                          <div class="preview-copy">
+                            <strong>{item.quantity}× {item.productName}</strong>
+                            <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
+                            {item.addOns.length ? (
+                              <p class="preview-addon kitchen-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
+                            ) : null}
+                            {item.note ? <p class="preview-note">{item.note}</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div class="order-actions kitchen-actions">
+                      {primaryActions.map((action) => (
+                        <button
+                          class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
+                          type="button"
+                          data-inline-action="true"
+                          data-order-no={order.orderNo}
+                          data-endpoint={action.endpoint}
+                          data-method={action.method}
+                          data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div class="order-main">
+                      <div>
+                        <p class="order-no">{order.orderNo}</p>
+                        <h3>
+                          <span>{order.customerName || copy.guest}</span>
+                          <small>{addressPreview(order)}</small>
+                        </h3>
+                        <p class="order-subcopy">
+                          {itemCountLabel(order.items.length)}
+                          {" · "}
+                          <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
+                          {" · "}
+                          {order.phone || "No phone"}
+                          {" · "}
+                          {formatDate(order.createdAt)}
+                        </p>
+                        {order.remark ? <p class="order-note">{order.remark}</p> : null}
+                      </div>
+                      <div class="order-total">{format(order.totalAmount)}</div>
+                    </div>
+                    <div class="order-preview">
+                      {order.items.slice(0, 3).map((item) => (
+                        <div class="preview-item">
+                          <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
+                          <div class="preview-copy">
+                            <strong>{item.productName}</strong>
+                            <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
+                            {item.addOns.length ? (
+                              <p class="preview-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
+                            ) : null}
+                            {item.note ? <p class="preview-note">{item.note}</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                      {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} {copy.moreItems}</p> : null}
+                    </div>
+                    <div class="order-rail">
+                      <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                      <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                        {statusLabel(order.paymentStatus)}
+                      </span>
+                      <span class:list={["method-pill", order.paymentMethod]}>
+                        {order.paymentMethod === "cash" ? copy.cash : copy.card}
+                      </span>
+                    </div>
+                    <div class="order-actions">
+                      <a class="detail-link" href={orderDetailHref(order.orderNo)}>{copy.viewDetails}</a>
+                      {queueActions(order).map((action) => (
+                        <button
+                          class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
+                          type="button"
+                          data-inline-action="true"
+                          data-order-no={order.orderNo}
+                          data-endpoint={action.endpoint}
+                          data-method={action.method}
+                          data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div class="card table-empty">{isKitchenMode ? copy.kitchenEmpty : copy.noProcessing}</div>
@@ -1096,6 +1127,13 @@ function queueActions(order: OrderRecord): QueueAction[] {
     justify-content: space-between;
     gap: 12px;
   }
+  .kitchen-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
   .order-preview {
     display: grid;
     gap: 10px;
@@ -1184,6 +1222,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
   }
   .kitchen-actions {
     margin-top: 4px;
+  }
+  .kitchen-cancel-button {
+    min-height: 38px;
+    padding: 0 14px;
   }
   .order-no {
     margin: 0 0 10px;
