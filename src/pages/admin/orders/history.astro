@@ -1,0 +1,512 @@
+---
+import AdminHeader from "@/components/admin/AdminHeader.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
+import { formatPrice } from "@/data/site";
+import { getRuntimeEnv, HISTORY_ORDER_STATUSES, listOrders, type OrderRecord } from "@/lib/orders";
+import { buildAdminHref, buildOrderDetailHref, getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
+
+export const prerender = false;
+
+const uiLang = getAdminLangFromUrl(Astro.url);
+const isZh = uiLang === "zh";
+const adminMode = getAdminModeFromUrl(Astro.url);
+const runtimeEnv = getRuntimeEnv(Astro.locals);
+const orders = await listOrders(runtimeEnv, { statuses: HISTORY_ORDER_STATUSES });
+const queueHref = buildAdminHref("/admin/orders", Astro.url.searchParams, { lang: uiLang, mode: adminMode, viewAll: false });
+const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: adminMode, history: true });
+const format = (value: number) => formatPrice(value, "en");
+
+const copy = isZh
+  ? {
+      pageEyebrow: "历史订单",
+      pageTitle: "已完成 / 取消 / 退款",
+      pageCopy: "平时不放在主队列里，只有需要查旧单、对账或确认退款时再打开。",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
+      backToQueue: "返回队列",
+      orders: "单",
+      filterAll: "全部",
+      filterCompleted: "已完成",
+      filterCancelled: "取消 / 退款",
+      searchPlaceholder: "搜索订单号、姓名或电话",
+      noMatches: "没有匹配的历史订单。",
+      noOrders: "还没有历史订单。",
+      guest: "游客结账",
+      delivery: "外送",
+      pickup: "自取",
+      viewDetails: "查看详情",
+      cash: "现金",
+      card: "卡支付",
+    }
+  : {
+      pageEyebrow: "Order History",
+      pageTitle: "Completed / Cancelled / Refunded",
+      pageCopy: "Keep history off the live queue and only open it when staff need to verify old tickets, refunds, or closed orders.",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
+      backToQueue: "Back to queue",
+      orders: "orders",
+      filterAll: "All",
+      filterCompleted: "Completed",
+      filterCancelled: "Cancelled / Refunded",
+      searchPlaceholder: "Search order, name, or phone",
+      noMatches: "No matching historical orders.",
+      noOrders: "No historical orders yet.",
+      guest: "Guest checkout",
+      delivery: "delivery",
+      pickup: "pickup",
+      viewDetails: "View details",
+      cash: "Cash",
+      card: "Card",
+    };
+
+const sortOrdersByCreatedAtDesc = (left: OrderRecord, right: OrderRecord) =>
+  new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+
+const historyOrders = orders.sort(sortOrdersByCreatedAtDesc);
+
+function statusLabel(value: string) {
+  if (!isZh) {
+    return ({
+      completed: "Completed",
+      cancelled: "Cancelled",
+      refunded: "Refunded",
+      paid: "Paid",
+      unpaid: "Unpaid",
+      failed: "Failed",
+    } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+  }
+  return ({
+    completed: "已完成",
+    cancelled: "已取消",
+    refunded: "已退款",
+    paid: "已支付",
+    unpaid: "未支付",
+    failed: "失败",
+  } as Record<string, string>)[value] ?? value.replaceAll("_", " ");
+}
+
+function statusGroup(order: OrderRecord) {
+  return order.orderStatus === "completed" ? "completed" : "cancelled";
+}
+
+function orderTone(order: OrderRecord) {
+  if (order.orderStatus === "completed") return "done";
+  if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
+  return "neutral";
+}
+
+function itemCountLabel(count: number) {
+  return isZh ? `${count} 件菜品` : `${count} items`;
+}
+
+function fulfillmentLabel(value: OrderRecord["fulfillment"]) {
+  return value === "delivery" ? copy.delivery : copy.pickup;
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(isZh ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+---
+
+<AdminLayout lang={uiLang} title={isZh ? "历史订单 | Sumi Ramen" : "Order History | Sumi Ramen Admin"}>
+  <section class="container admin-shell" data-ui-lang={uiLang} data-admin-mode={adminMode}>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="orders"
+      eyebrow={copy.pageEyebrow}
+      title={copy.pageTitle}
+      copy={copy.pageCopy}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+    >
+      <a slot="actions" class="ghost-button page-link-button" href={queueHref}>{copy.backToQueue}</a>
+    </AdminHeader>
+
+    <div class="order-toolbar card" role="search">
+      <div class="filter-tabs" aria-label="Order history filters">
+        <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button>
+        <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button>
+        <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button>
+      </div>
+      <label class="order-search">
+        <span class="sr-only">{copy.searchPlaceholder}</span>
+        <input id="order-search-input" type="search" placeholder={copy.searchPlaceholder} autocomplete="off" />
+      </label>
+    </div>
+
+    <div class="card table-empty no-match-panel" id="no-matching-orders" hidden>{copy.noMatches}</div>
+
+    <section class="orders-section">
+      <div class="orders-head">
+        <div>
+          <p class="eyebrow orders-eyebrow">{copy.pageEyebrow}</p>
+          <h2>{copy.pageTitle}</h2>
+        </div>
+        <p class="orders-meta">{historyOrders.length} {copy.orders}</p>
+      </div>
+
+      {historyOrders.length ? (
+        <div class="order-list">
+          {historyOrders.map((order) => (
+            <a
+              class:list={["card order-card", orderTone(order)]}
+              href={orderDetailHref(order.orderNo)}
+              data-order-id={order.id}
+              data-status-group={statusGroup(order)}
+              data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
+            >
+              <div class="order-main">
+                <div>
+                  <p class="order-no">{order.orderNo}</p>
+                  <h3>{order.customerName || copy.guest}</h3>
+                  <p class="order-subcopy">
+                    {itemCountLabel(order.items.length)}
+                    {" · "}
+                    <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
+                    {" · "}
+                    {order.phone || "No phone"}
+                    {" · "}
+                    {formatDate(order.createdAt)}
+                  </p>
+                </div>
+                <div class="order-total">{format(order.totalAmount)}</div>
+              </div>
+              <div class="order-rail">
+                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                  {statusLabel(order.paymentStatus)}
+                </span>
+                <span class:list={["method-pill", order.paymentMethod]}>
+                  {order.paymentMethod === "cash" ? copy.cash : copy.card}
+                </span>
+              </div>
+              <div class="order-actions">
+                <span class="detail-link">{copy.viewDetails}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="card table-empty">{copy.noOrders}</div>
+      )}
+    </section>
+
+    <script is:inline>
+      const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
+      const searchInput = document.getElementById("order-search-input");
+      const noMatches = document.getElementById("no-matching-orders");
+
+      const getCardMeta = (card) => ({
+        status: card.dataset.statusGroup || "",
+        search: (card.dataset.search || "").toLowerCase(),
+      });
+
+      const applyOrderFilters = () => {
+        const activeFilter = document.querySelector("[data-filter].active")?.getAttribute("data-filter") || "all";
+        const query = searchInput instanceof HTMLInputElement ? searchInput.value.trim().toLowerCase() : "";
+        let visibleCount = 0;
+
+        document.querySelectorAll(".order-card").forEach((card) => {
+          if (!(card instanceof HTMLElement)) return;
+          const meta = getCardMeta(card);
+          const statusMatch = activeFilter === "all" || meta.status === activeFilter;
+          const queryMatch = !query || meta.search.includes(query);
+          const visible = statusMatch && queryMatch;
+          card.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+
+        if (noMatches instanceof HTMLElement) {
+          noMatches.hidden = visibleCount > 0;
+        }
+      };
+
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          filterButtons.forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          applyOrderFilters();
+        });
+      });
+
+      if (searchInput instanceof HTMLInputElement) {
+        searchInput.addEventListener("input", applyOrderFilters);
+      }
+    </script>
+  </section>
+</AdminLayout>
+
+<style>
+  .admin-shell {
+    padding: 32px 0 88px;
+    color: var(--admin-text);
+  }
+  .admin-shell :global(.eyebrow) {
+    color: var(--admin-gold);
+    font-weight: 800;
+  }
+  .admin-shell :global(.section-copy) {
+    color: var(--admin-muted);
+  }
+  .orders-eyebrow,
+  .order-no,
+  .orders-meta {
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .orders-eyebrow,
+  .order-no {
+    color: #2d6cdf;
+  }
+  .orders-meta {
+    color: rgba(18,49,75,.56);
+  }
+  .page-link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    border-color: rgba(45,108,223,.16);
+    background: #ffffff;
+    color: #174ea6;
+  }
+  .order-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: center;
+    margin: 22px 0 24px;
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    box-shadow: 0 12px 34px rgba(15,76,153,.06);
+  }
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .filter-tab {
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid rgba(45,108,223,.14);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #174ea6;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .filter-tab.active {
+    background: #174ea6;
+    color: #ffffff;
+  }
+  .order-search {
+    flex: 1 1 260px;
+    max-width: 360px;
+  }
+  .order-search input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid rgba(45,108,223,.16);
+    border-radius: 999px;
+    background: #f8fbff;
+    color: #12314b;
+  }
+  .no-match-panel {
+    margin-bottom: 18px;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .orders-section {
+    display: grid;
+    gap: 16px;
+  }
+  .orders-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+  }
+  .orders-head h2 {
+    margin: 0;
+    font-size: clamp(1.55rem, 3vw, 2.2rem);
+  }
+  .order-list {
+    display: grid;
+    gap: 14px;
+  }
+  .order-card {
+    padding: 18px 20px;
+    display: grid;
+    gap: 14px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,251,255,.98)),
+      #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    box-shadow: 0 18px 48px rgba(15,76,153,.08);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .order-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(45,108,223,.26);
+  }
+  .order-main,
+  .order-rail {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+  }
+  .order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .order-no {
+    margin: 0 0 10px;
+  }
+  .order-card h3 {
+    margin: 0;
+    font-size: 1.55rem;
+    line-height: 1.05;
+  }
+  .order-subcopy {
+    margin: 8px 0 0;
+    color: rgba(18,49,75,.64);
+  }
+  .order-total {
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: rgba(45,108,223,.08);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: #174ea6;
+  }
+  .status-pill,
+  .payment-pill,
+  .method-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid rgba(45,108,223,.12);
+    color: #12314b;
+  }
+  .status-pill.done,
+  .order-card.done {
+    border-color: rgba(77,168,126,.24);
+    background:
+      linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.98)),
+      #ffffff;
+  }
+  .status-pill.muted,
+  .order-card.muted {
+    opacity: 0.78;
+  }
+  .payment-pill.paid {
+    background: rgba(77,168,126,.12);
+    border-color: rgba(77,168,126,.24);
+  }
+  .payment-pill.unpaid {
+    background: rgba(207,69,72,.1);
+    border-color: rgba(207,69,72,.2);
+  }
+  .method-pill {
+    background: rgba(45,108,223,.06);
+    color: #2d6cdf;
+    border-color: rgba(45,108,223,.14);
+  }
+  .method-pill.cash {
+    background: rgba(251,188,5,0.12);
+    color: #b08000;
+    border-color: rgba(251,188,5,0.3);
+  }
+  .fulfillment-highlight {
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .fulfillment-highlight.delivery {
+    background: #e8f0fe;
+    color: #1967d2;
+  }
+  .fulfillment-highlight.pickup {
+    background: #f3e8fd;
+    color: #9334e6;
+  }
+  .detail-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(45,108,223,.14);
+    color: #174ea6;
+    font-weight: 700;
+    background: rgba(45,108,223,.03);
+  }
+  @media (max-width: 900px) {
+    .order-main,
+    .order-rail {
+      flex-wrap: wrap;
+      align-items: start;
+    }
+  }
+  @media (max-width: 760px) {
+    .order-toolbar {
+      display: grid;
+      justify-content: stretch;
+    }
+    .order-search {
+      max-width: none;
+    }
+  }
+</style>

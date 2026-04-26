@@ -15,6 +15,9 @@ export type PaymentStatus = "unpaid" | "paid" | "failed" | "refunded";
 export type FulfillmentMethod = "delivery" | "pickup";
 export type PaymentProvider = "stripe";
 
+export const ACTIVE_ORDER_STATUSES: OrderStatus[] = ["paid_waiting_accept", "accepted", "cooking", "delivering"];
+export const HISTORY_ORDER_STATUSES: OrderStatus[] = ["completed", "cancelled", "refunded"];
+
 export type RuntimeEnv = {
   DB?: {
     prepare(query: string): {
@@ -615,19 +618,75 @@ async function listOrdersFromD1(runtimeEnv?: RuntimeEnv) {
   }));
 }
 
-async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
+type ListOrderOptions = {
+  statuses?: OrderStatus[];
+};
+
+async function listOrdersFromD1ByStatus(statuses: OrderStatus[], runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db || statuses.length === 0) return [];
+
+  const placeholders = statuses.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `SELECT id, order_no, lang, currency, fulfillment, customer_name, phone, address, remark,
+              items_amount, delivery_fee, total_amount, payment_status, order_status, payment_method,
+              stripe_checkout_session_id, stripe_payment_intent_id, created_at, paid_at, updated_at, timeline_json
+       FROM orders
+       WHERE order_status IN (${placeholders})
+       ORDER BY created_at DESC`,
+    )
+    .bind(...statuses)
+    .all<OrderRow>();
+
+  const itemsByOrderId = await getOrderItemsByOrderIdsFromD1(
+    result.results.map((row) => row.id),
+    runtimeEnv,
+  );
+
+  return result.results.map((row) => ({
+    id: row.id,
+    orderNo: row.order_no,
+    lang: row.lang,
+    currency: row.currency,
+    fulfillment: row.fulfillment,
+    customerName: row.customer_name,
+    phone: row.phone,
+    address: row.address,
+    remark: row.remark,
+    itemsAmount: Number(row.items_amount),
+    deliveryFee: Number(row.delivery_fee),
+    totalAmount: Number(row.total_amount),
+    paymentStatus: row.payment_status,
+    orderStatus: row.order_status,
+    paymentMethod: row.payment_method || "card",
+    stripeCheckoutSessionId: row.stripe_checkout_session_id,
+    stripePaymentIntentId: row.stripe_payment_intent_id,
+    createdAt: row.created_at,
+    paidAt: row.paid_at,
+    updatedAt: row.updated_at,
+    items: itemsByOrderId.get(row.id) ?? [],
+    timeline: parseJson<OrderLifecycleEvent[]>(row.timeline_json, []),
+  }));
+}
+
+async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv, options: ListOrderOptions = {}) {
   const cached = getCachedValue(orderAlertsCache);
-  if (cached) return cached;
+  if (!options.statuses?.length && cached) return cached;
 
   const db = getDbBinding(runtimeEnv);
   if (!db) return [];
 
+  const statuses = options.statuses ?? [];
+  const whereClause = statuses.length ? `WHERE order_status IN (${statuses.map(() => "?").join(", ")})` : "";
   const result = await db
     .prepare(
       `SELECT id, order_no, payment_status, payment_method, order_status, created_at
        FROM orders
+       ${whereClause}
        ORDER BY created_at DESC`,
     )
+    .bind(...statuses)
     .all<Pick<OrderRow, "id" | "order_no" | "payment_status" | "payment_method" | "order_status" | "created_at">>();
 
   const alerts = result.results.map((row) => ({
@@ -639,7 +698,9 @@ async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
     createdAt: row.created_at,
   }));
 
-  orderAlertsCache = setCachedValue(alerts, ORDER_ALERTS_CACHE_TTL_MS);
+  if (!statuses.length) {
+    orderAlertsCache = setCachedValue(alerts, ORDER_ALERTS_CACHE_TTL_MS);
+  }
   return alerts;
 }
 
@@ -1369,8 +1430,9 @@ export async function getOrder(orderLookup: string, runtimeEnv?: RuntimeEnv) {
   return (await getOrderById(orderLookup, runtimeEnv)) ?? (await getOrderByOrderNo(orderLookup, runtimeEnv));
 }
 
-export async function listOrders(runtimeEnv?: RuntimeEnv) {
-  const d1Orders = await listOrdersFromD1(runtimeEnv);
+export async function listOrders(runtimeEnv?: RuntimeEnv, options: ListOrderOptions = {}) {
+  const statuses = options.statuses ?? [];
+  const d1Orders = statuses.length ? await listOrdersFromD1ByStatus(statuses, runtimeEnv) : await listOrdersFromD1(runtimeEnv);
   
   // CRITICAL: If we have D1 orders, we ONLY return them. 
   // We stop traversing KV entirely to stay within daily read limits (100k per day).
@@ -1381,19 +1443,21 @@ export async function listOrders(runtimeEnv?: RuntimeEnv) {
   // Fallback to KV only if D1 is not present (legacy mode)
   const keys = await listOrderKeys(runtimeEnv);
   const kvOrders = await Promise.all(keys.map(async (key) => await readJson<OrderRecord>(key, runtimeEnv)));
-  
-  return kvOrders
+
+  const filteredOrders = kvOrders
     .filter((o): o is OrderRecord => !!o)
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    .filter((order) => !statuses.length || statuses.includes(order.orderStatus));
+
+  return filteredOrders.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-export async function listOrderAlerts(runtimeEnv?: RuntimeEnv) {
-  const d1Orders = await listOrderAlertsFromD1(runtimeEnv);
+export async function listOrderAlerts(runtimeEnv?: RuntimeEnv, options: ListOrderOptions = {}) {
+  const d1Orders = await listOrderAlertsFromD1(runtimeEnv, options);
   if (d1Orders.length > 0 || getDbBinding(runtimeEnv)) {
     return d1Orders;
   }
 
-  const orders = await listOrders(runtimeEnv);
+  const orders = await listOrders(runtimeEnv, options);
   return orders.map((order) => ({
     id: order.id,
     orderNo: order.orderNo,

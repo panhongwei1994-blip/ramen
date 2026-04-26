@@ -2,7 +2,7 @@
 import AdminHeader from "@/components/admin/AdminHeader.astro";
 import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { formatPrice } from "@/data/site";
-import { getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } from "@/lib/orders";
+import { ACTIVE_ORDER_STATUSES, getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } from "@/lib/orders";
 import { buildAdminHref, buildOrderDetailHref, getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
 
 export const prerender = false;
@@ -12,17 +12,11 @@ const isZh = uiLang === "zh";
 const adminMode = getAdminModeFromUrl(Astro.url);
 const isKitchenMode = adminMode === "kitchen";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
-const orders = await listOrders(runtimeEnv);
-const viewAll = Astro.url.searchParams.get("view") === "all";
+const orders = await listOrders(runtimeEnv, { statuses: ACTIVE_ORDER_STATUSES });
 
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
-const buildPageHref = (overrides: { lang?: "en" | "zh"; mode?: "front" | "kitchen"; viewAll?: boolean } = {}) =>
-  buildAdminHref(Astro.url.pathname, Astro.url.searchParams, {
-    lang: overrides.lang ?? uiLang,
-    mode: overrides.mode ?? adminMode,
-    viewAll: overrides.viewAll ?? viewAll,
-  });
+const historyHref = buildAdminHref("/admin/orders/history", Astro.url.searchParams, { lang: uiLang, mode: adminMode, viewAll: false });
 const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: adminMode });
 const copy = isZh
   ? {
@@ -43,11 +37,6 @@ const copy = isZh
       processing: "订单队列",
       orders: "单",
       noProcessing: "当前没有处理中订单。",
-      history: "历史订单",
-      completed: "已完成",
-      noCompleted: "还没有已完成订单。",
-      closed: "关闭订单",
-      cancelledRefunded: "取消 / 退款",
       guest: "游客结账",
       delivery: "外送",
       pickup: "自取",
@@ -61,9 +50,9 @@ const copy = isZh
       actionCooking: "开始制作",
       actionDelivery: "标记备好",
       actionComplete: "完成",
+      historyButton: "历史订单",
       cash: "现金",
       card: "卡支付",
-      viewAll: "查看历史订单",
       navOrders: "订单队列",
       navProducts: "菜品管理",
       navSettings: "店铺设置",
@@ -98,11 +87,6 @@ const copy = isZh
       processing: "Order queue",
       orders: "orders",
       noProcessing: "No processing orders.",
-      history: "History",
-      completed: "Completed",
-      noCompleted: "No completed orders yet.",
-      closed: "Closed",
-      cancelledRefunded: "Cancelled / Refunded",
       guest: "Guest checkout",
       delivery: "delivery",
       pickup: "pickup",
@@ -116,9 +100,9 @@ const copy = isZh
       actionCooking: "Start preparing",
       actionDelivery: "Mark ready",
       actionComplete: "Complete",
+      historyButton: "Order history",
       cash: "Cash",
       card: "Card",
-      viewAll: "View historical orders",
       navOrders: "Orders",
       navProducts: "Products",
       navSettings: "Settings",
@@ -137,24 +121,11 @@ const copy = isZh
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
-const completedStatuses = new Set(["completed"]);
-const closedStatuses = new Set(["cancelled", "refunded"]);
-
 const sortOrdersByCreatedAtAsc = (left: OrderRecord, right: OrderRecord) =>
   new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-const sortOrdersByCreatedAtDesc = (left: OrderRecord, right: OrderRecord) =>
-  new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 
 const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtAsc);
-const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtDesc);
-const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtDesc);
-
-const completedOrders = viewAll ? allCompletedOrders : allCompletedOrders.slice(0, 5);
-const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
-
-const hasMoreCompleted = allCompletedOrders.length > completedOrders.length;
-const hasMoreClosed = allClosedOrders.length > closedOrders.length;
-const visibleFilterGroups = isKitchenMode ? ["all", "new", "preparing", "ready"] : ["all", "new", "preparing", "ready", "completed", "cancelled"];
+const visibleFilterGroups = ["all", "new", "preparing", "ready"];
 const addressPreview = (order: OrderRecord) => {
   if (order.fulfillment === "pickup") return isZh ? "自取" : "Pickup";
   return order.address || (isZh ? "未填写地址" : "No address");
@@ -290,6 +261,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
     >
+      {!isKitchenMode ? <a slot="actions" class="ghost-button alert-toggle" href={historyHref}>{copy.historyButton}</a> : null}
       <button slot="actions" class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
       <span slot="actions" class="alert-status" id="order-alert-status">{copy.alertOff}</span>
     </AdminHeader>
@@ -477,95 +449,6 @@ function kitchenPrimaryActions(order: OrderRecord) {
         <div class="card table-empty">{isKitchenMode ? copy.kitchenEmpty : copy.noProcessing}</div>
       )}
     </section>
-
-    {!isKitchenMode ? (
-      <section class="orders-section secondary-section">
-      <div class="orders-head">
-        <div>
-          <p class="eyebrow orders-eyebrow">{copy.history}</p>
-          <h2>{copy.completed}</h2>
-        </div>
-        <p class="orders-meta">{completedOrders.length} {copy.orders}</p>
-      </div>
-
-      {completedOrders.length ? (
-        <div class="order-list">
-          {completedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={orderDetailHref(order.orderNo)} data-order-id={order.id}>
-              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
-              <div class="order-main">
-                <div>
-                  <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || copy.guest}</h3>
-                  <p class="order-subcopy">
-                    {itemCountLabel(order.items.length)}
-                    {" · "}
-                    {formatDate(order.createdAt)}
-                  </p>
-                </div>
-                <div class="order-total">{format(order.totalAmount)}</div>
-              </div>
-              <div class="order-rail">
-                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
-                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
-                  {statusLabel(order.paymentStatus)}
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div class="card table-empty">{copy.noCompleted}</div>
-      )}
-      {hasMoreCompleted ? (
-        <a class="ghost-button view-all-button" href={buildPageHref({ viewAll: true })}>
-          {copy.viewAll} ({allCompletedOrders.length})
-        </a>
-      ) : null}
-    </section>
-    ) : null}
-
-    {!isKitchenMode && closedOrders.length ? (
-      <section class="orders-section secondary-section">
-        <div class="orders-head">
-          <div>
-            <p class="eyebrow orders-eyebrow">{copy.closed}</p>
-            <h2>{copy.cancelledRefunded}</h2>
-          </div>
-          <p class="orders-meta">{closedOrders.length} {copy.orders}</p>
-        </div>
-        <div class="order-list">
-          {closedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={orderDetailHref(order.orderNo)} data-order-id={order.id}>
-              <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
-              <div class="order-main">
-                <div>
-                  <p class="order-no">{order.orderNo}</p>
-                  <h3>{order.customerName || copy.guest}</h3>
-                  <p class="order-subcopy">
-                    {itemCountLabel(order.items.length)}
-                    {" · "}
-                    {formatDate(order.createdAt)}
-                  </p>
-                </div>
-                <div class="order-total">{format(order.totalAmount)}</div>
-              </div>
-              <div class="order-rail">
-                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
-                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
-                  {statusLabel(order.paymentStatus)}
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
-        {hasMoreClosed ? (
-          <a class="ghost-button view-all-button" href={buildPageHref({ viewAll: true })}>
-            {copy.viewAll} ({allClosedOrders.length})
-          </a>
-        ) : null}
-      </section>
-    ) : null}
 
     <script
       is:inline

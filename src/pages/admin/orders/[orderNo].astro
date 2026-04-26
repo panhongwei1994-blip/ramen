@@ -10,6 +10,7 @@ export const prerender = false;
 const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
 const adminMode = getAdminModeFromUrl(Astro.url);
+const fromHistory = Astro.url.searchParams.get("history") === "1";
 const orderNo = Astro.params.orderNo ?? "";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
@@ -31,10 +32,11 @@ for (const log of logs) {
 }
 timeline.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // Newest first
 
-const ordersBackHref = buildAdminHref("/admin/orders", Astro.url.searchParams, {
+const ordersBackHref = buildAdminHref(fromHistory ? "/admin/orders/history" : "/admin/orders", Astro.url.searchParams, {
   lang: uiLang,
   mode: adminMode,
   viewAll: false,
+  history: fromHistory,
 });
 
 if (!order) {
@@ -58,7 +60,7 @@ const copy = isZh
       pageEyebrow: "订单详情",
       pageMissing: "订单不存在",
       pageCopy: "把关键状态、支付和出餐操作放在最前面，其他信息放在下面。",
-      back: "返回订单队列",
+      back: fromHistory ? "返回历史订单" : "返回订单队列",
       langEn: "EN",
       langZh: "中文",
       deliveryOrder: "外送订单",
@@ -101,7 +103,7 @@ const copy = isZh
       pageEyebrow: "Merchant Order",
       pageMissing: "Order not found",
       pageCopy: "Critical status, payment, and fulfillment actions are surfaced first. Supporting details sit below.",
-      back: "Back to order queue",
+      back: fromHistory ? "Back to history" : "Back to order queue",
       langEn: "EN",
       langZh: "中文",
       deliveryOrder: "Delivery order",
