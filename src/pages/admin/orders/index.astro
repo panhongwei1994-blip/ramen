@@ -7,26 +7,48 @@ export const prerender = false;
 
 const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
 const isZh = uiLang === "zh";
+const adminMode = Astro.url.searchParams.get("mode") === "kitchen" ? "kitchen" : "front";
+const isKitchenMode = adminMode === "kitchen";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
 const viewAll = Astro.url.searchParams.get("view") === "all";
 
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
-const makeLangHref = (lang: "en" | "zh") => {
+const buildPageHref = (overrides: { lang?: "en" | "zh"; mode?: "front" | "kitchen"; viewAll?: boolean } = {}) => {
   const params = new URLSearchParams(Astro.url.searchParams);
+  const lang = overrides.lang ?? uiLang;
+  const mode = overrides.mode ?? adminMode;
+  const shouldViewAll = overrides.viewAll ?? viewAll;
+
   if (lang === "zh") params.set("ui", "zh");
   else params.delete("ui");
+  if (mode === "kitchen") params.set("mode", "kitchen");
+  else params.delete("mode");
+  if (shouldViewAll) params.set("view", "all");
+  else params.delete("view");
+
   const query = params.toString();
   return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+};
+const makeLangHref = (lang: "en" | "zh") => buildPageHref({ lang });
+const makeModeHref = (mode: "front" | "kitchen") => buildPageHref({ mode, viewAll: mode === "kitchen" ? false : viewAll });
+const orderDetailHref = (orderNo: string) => {
+  const params = new URLSearchParams();
+  if (isZh) params.set("ui", "zh");
+  if (isKitchenMode) params.set("mode", "kitchen");
+  const query = params.toString();
+  return `/admin/orders/${orderNo}${query ? `?${query}` : ""}`;
 };
 const copy = isZh
   ? {
       pageEyebrow: "后台订单",
-      pageTitle: "订单",
-      pageCopy: "给员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
+      pageTitle: isKitchenMode ? "后厨出餐队列" : "订单",
+      pageCopy: isKitchenMode ? "给后厨看的精简出餐视图，只保留当前要处理的队列和关键操作。" : "给前台员工使用的订单队列：查找订单、筛选状态，并快速推进出餐。",
       langEn: "EN",
       langZh: "中文",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
       alertButton: "开启通知",
       alertOff: "通知关闭",
       alertOn: "通知已开启",
@@ -67,16 +89,21 @@ const copy = isZh
       filterReady: "已备好",
       filterCompleted: "已完成",
       filterCancelled: "已取消",
-      searchPlaceholder: "搜索订单号、姓名或电话",
+      searchPlaceholder: isKitchenMode ? "搜索订单号或姓名" : "搜索订单号、姓名或电话",
       noMatches: "没有匹配的订单。",
       confirmCancel: "确认取消这笔订单？",
+      kitchenQueue: "出餐队列",
+      kitchenEmpty: "当前没有待处理订单。",
+      kitchenQueuedAt: "下单时间",
     }
   : {
       pageEyebrow: "Merchant Orders",
-      pageTitle: "Orders",
-      pageCopy: "A staff-focused queue for finding orders, scanning status, and moving service forward quickly.",
+      pageTitle: isKitchenMode ? "Kitchen Queue" : "Orders",
+      pageCopy: isKitchenMode ? "A compact kitchen-first queue that keeps only the active tickets and the next action visible." : "A front-of-house queue for finding orders, scanning status, and moving service forward quickly.",
       langEn: "EN",
       langZh: "中文",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
       alertButton: "Enable order alerts",
       alertOff: "Alerts off",
       alertOn: "Alerts on",
@@ -117,9 +144,12 @@ const copy = isZh
       filterReady: "Ready",
       filterCompleted: "Completed",
       filterCancelled: "Cancelled",
-      searchPlaceholder: "Search order, name, or phone",
+      searchPlaceholder: isKitchenMode ? "Search order or name" : "Search order, name, or phone",
       noMatches: "No matching orders.",
       confirmCancel: "Cancel this order?",
+      kitchenQueue: "Kitchen queue",
+      kitchenEmpty: "No active kitchen tickets.",
+      kitchenQueuedAt: "Queued",
     };
 
 const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking", "delivering"]);
@@ -135,10 +165,12 @@ const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
 
 const hasMoreCompleted = allCompletedOrders.length > completedOrders.length;
 const hasMoreClosed = allClosedOrders.length > closedOrders.length;
+const visibleFilterGroups = isKitchenMode ? ["all", "new", "preparing", "ready"] : ["all", "new", "preparing", "ready", "completed", "cancelled"];
 const addressPreview = (order: OrderRecord) => {
   if (order.fulfillment === "pickup") return isZh ? "自取" : "Pickup";
   return order.address || (isZh ? "未填写地址" : "No address");
 };
+const kitchenSearchPreview = (order: OrderRecord) => `${order.orderNo} ${order.customerName}`.trim();
 
 type QueueAction = {
   label: string;
@@ -243,9 +275,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
 ---
 
 <AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sumi Ramen" : "Orders | Sumi Ramen Admin"}>
-  <section class="container admin-shell" data-ui-lang={uiLang}>
+  <section class="container admin-shell" data-ui-lang={uiLang} data-admin-mode={adminMode}>
     <nav class="admin-nav card">
-      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/orders") }]} href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.navOrders}</a>
+      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/orders") }]} href={buildPageHref({ viewAll: false })}>{copy.navOrders}</a>
       <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/products") }]} href={`/admin/products${isZh ? "?ui=zh" : ""}`}>{copy.navProducts}</a>
       <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/settings") }]} href={`/admin/settings${isZh ? "?ui=zh" : ""}`}>{copy.navSettings}</a>
     </nav>
@@ -261,6 +293,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
           <a class:list={["lang-button", { active: uiLang === "en" }]} href={makeLangHref("en")}>{copy.langEn}</a>
           <a class:list={["lang-button", { active: uiLang === "zh" }]} href={makeLangHref("zh")}>{copy.langZh}</a>
         </div>
+        <div class="admin-lang-switch">
+          <a class:list={["lang-button", { active: !isKitchenMode }]} href={makeModeHref("front")}>{copy.modeFront}</a>
+          <a class:list={["lang-button", { active: isKitchenMode }]} href={makeModeHref("kitchen")}>{copy.modeKitchen}</a>
+        </div>
         <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
         <span class="alert-status" id="order-alert-status">{copy.alertOff}</span>
       </div>
@@ -268,12 +304,12 @@ function queueActions(order: OrderRecord): QueueAction[] {
 
     <div class="order-toolbar card" role="search">
       <div class="filter-tabs" aria-label="Order status filters">
-        <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button>
-        <button class="filter-tab" type="button" data-filter="new">{copy.filterNew}</button>
-        <button class="filter-tab" type="button" data-filter="preparing">{copy.filterPreparing}</button>
-        <button class="filter-tab" type="button" data-filter="ready">{copy.filterReady}</button>
-        <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button>
-        <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button>
+        {visibleFilterGroups.includes("all") ? <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button> : null}
+        {visibleFilterGroups.includes("new") ? <button class="filter-tab" type="button" data-filter="new">{copy.filterNew}</button> : null}
+        {visibleFilterGroups.includes("preparing") ? <button class="filter-tab" type="button" data-filter="preparing">{copy.filterPreparing}</button> : null}
+        {visibleFilterGroups.includes("ready") ? <button class="filter-tab" type="button" data-filter="ready">{copy.filterReady}</button> : null}
+        {visibleFilterGroups.includes("completed") ? <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button> : null}
+        {visibleFilterGroups.includes("cancelled") ? <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button> : null}
       </div>
       <label class="order-search">
         <span class="sr-only">{copy.searchPlaceholder}</span>
@@ -291,92 +327,139 @@ function queueActions(order: OrderRecord): QueueAction[] {
     <section class="orders-section">
       <div class="orders-head">
         <div>
-          <p class="eyebrow orders-eyebrow">{copy.liveQueue}</p>
-          <h2>{copy.processing}</h2>
+          <p class="eyebrow orders-eyebrow">{isKitchenMode ? copy.kitchenQueue : copy.liveQueue}</p>
+          <h2>{isKitchenMode ? copy.kitchenQueue : copy.processing}</h2>
         </div>
         <p class="orders-meta">{processingOrders.length} {copy.orders}</p>
       </div>
 
       {processingOrders.length ? (
-        <div class="order-list">
+        <div class:list={["order-list", { "kitchen-grid": isKitchenMode }]}>
           {processingOrders.map((order) => (
             <article
-              class:list={["card order-card", orderTone(order)]}
+              class:list={["card order-card", orderTone(order), { "kitchen-card": isKitchenMode }]}
               data-order-id={order.id}
               data-order-no={order.orderNo}
               data-status-group={statusGroup(order)}
-              data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
+              data-search={isKitchenMode ? kitchenSearchPreview(order) : `${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}
             >
-              <div class="order-main">
-                <div>
-                  <p class="order-no">{order.orderNo}</p>
-                  <h3>
-                    <span>{order.customerName || copy.guest}</span>
-                    <small>{addressPreview(order)}</small>
-                  </h3>
-                  <p class="order-subcopy">
-                    {itemCountLabel(order.items.length)}
-                    {" · "}
-                    <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
-                    {" · "}
-                    {order.phone || "No phone"}
-                    {" · "}
-                    {formatDate(order.createdAt)}
+              {isKitchenMode ? (
+                <>
+                  <div class="kitchen-card-top">
+                    <div>
+                      <p class="order-no">{order.orderNo}</p>
+                      <h3>{order.customerName || copy.guest}</h3>
+                    </div>
+                    <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                  </div>
+                  <p class="order-subcopy kitchen-subcopy">
+                    {copy.kitchenQueuedAt} · {formatDate(order.createdAt)}
                   </p>
                   {order.remark ? <p class="order-note">{order.remark}</p> : null}
-                </div>
-                <div class="order-total">{format(order.totalAmount)}</div>
-              </div>
-              <div class="order-preview">
-                {order.items.slice(0, 3).map((item) => (
-                  <div class="preview-item">
-                    <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
-                    <div class="preview-copy">
-                      <strong>{item.productName}</strong>
-                      <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
-                      {item.addOns.length ? (
-                        <p class="preview-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
-                      ) : null}
-                      {item.note ? <p class="preview-note">{item.note}</p> : null}
-                    </div>
+                  <div class="order-preview kitchen-preview">
+                    {order.items.map((item) => (
+                      <div class="preview-item kitchen-preview-item">
+                        <div class="preview-copy">
+                          <strong>{item.quantity}× {item.productName}</strong>
+                          {item.addOns.length ? (
+                            <p class="preview-addon kitchen-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
+                          ) : null}
+                          {item.note ? <p class="preview-note">{item.note}</p> : null}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} {copy.moreItems}</p> : null}
-              </div>
-              <div class="order-rail">
-                <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
-                <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
-                  {statusLabel(order.paymentStatus)}
-                </span>
-                <span class:list={["method-pill", order.paymentMethod]}>
-                  {order.paymentMethod === "cash" ? copy.cash : copy.card}
-                </span>
-              </div>
-              <div class="order-actions">
-                <a class="detail-link" href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`}>{copy.viewDetails}</a>
-                {queueActions(order).map((action) => (
-                  <button
-                    class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
-                    type="button"
-                    data-inline-action="true"
-                    data-order-no={order.orderNo}
-                    data-endpoint={action.endpoint}
-                    data-method={action.method}
-                    data-payload={action.payload ? JSON.stringify(action.payload) : ""}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
+                  <div class="order-actions kitchen-actions">
+                    {queueActions(order).map((action) => (
+                      <button
+                        class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
+                        type="button"
+                        data-inline-action="true"
+                        data-order-no={order.orderNo}
+                        data-endpoint={action.endpoint}
+                        data-method={action.method}
+                        data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div class="order-main">
+                    <div>
+                      <p class="order-no">{order.orderNo}</p>
+                      <h3>
+                        <span>{order.customerName || copy.guest}</span>
+                        <small>{addressPreview(order)}</small>
+                      </h3>
+                      <p class="order-subcopy">
+                        {itemCountLabel(order.items.length)}
+                        {" · "}
+                        <span class:list={["fulfillment-highlight", order.fulfillment]}>{fulfillmentLabel(order.fulfillment)}</span>
+                        {" · "}
+                        {order.phone || "No phone"}
+                        {" · "}
+                        {formatDate(order.createdAt)}
+                      </p>
+                      {order.remark ? <p class="order-note">{order.remark}</p> : null}
+                    </div>
+                    <div class="order-total">{format(order.totalAmount)}</div>
+                  </div>
+                  <div class="order-preview">
+                    {order.items.slice(0, 3).map((item) => (
+                      <div class="preview-item">
+                        <img src={item.imageUrl} alt={`${item.productName} preview`} loading="lazy" width="56" height="56" />
+                        <div class="preview-copy">
+                          <strong>{item.productName}</strong>
+                          <span>{formatPreviewQuantity(item.quantity, item.subtotal)}</span>
+                          {item.addOns.length ? (
+                            <p class="preview-addon">{item.addOns.map((addOn) => addOn.label).join(" · ")}</p>
+                          ) : null}
+                          {item.note ? <p class="preview-note">{item.note}</p> : null}
+                        </div>
+                      </div>
+                    ))}
+                    {order.items.length > 3 ? <p class="preview-more">+{order.items.length - 3} {copy.moreItems}</p> : null}
+                  </div>
+                  <div class="order-rail">
+                    <span class:list={["status-pill", orderTone(order)]}>{statusLabel(order.orderStatus)}</span>
+                    <span class:list={["payment-pill", { paid: order.paymentStatus === "paid", unpaid: order.paymentStatus !== "paid" }]}>
+                      {statusLabel(order.paymentStatus)}
+                    </span>
+                    <span class:list={["method-pill", order.paymentMethod]}>
+                      {order.paymentMethod === "cash" ? copy.cash : copy.card}
+                    </span>
+                  </div>
+                  <div class="order-actions">
+                    <a class="detail-link" href={orderDetailHref(order.orderNo)}>{copy.viewDetails}</a>
+                    {queueActions(order).map((action) => (
+                      <button
+                        class:list={["queue-action", action.tone === "danger" ? "danger" : "primary"]}
+                        type="button"
+                        data-inline-action="true"
+                        data-order-no={order.orderNo}
+                        data-endpoint={action.endpoint}
+                        data-method={action.method}
+                        data-payload={action.payload ? JSON.stringify(action.payload) : ""}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </article>
           ))}
         </div>
       ) : (
-        <div class="card table-empty">{copy.noProcessing}</div>
+        <div class="card table-empty">{isKitchenMode ? copy.kitchenEmpty : copy.noProcessing}</div>
       )}
     </section>
 
-    <section class="orders-section secondary-section">
+    {!isKitchenMode ? (
+      <section class="orders-section secondary-section">
       <div class="orders-head">
         <div>
           <p class="eyebrow orders-eyebrow">{copy.history}</p>
@@ -388,7 +471,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       {completedOrders.length ? (
         <div class="order-list">
           {completedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={orderDetailHref(order.orderNo)} data-order-id={order.id}>
               <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
               <div class="order-main">
                 <div>
@@ -415,13 +498,14 @@ function queueActions(order: OrderRecord): QueueAction[] {
         <div class="card table-empty">{copy.noCompleted}</div>
       )}
       {hasMoreCompleted ? (
-        <a class="ghost-button view-all-button" href="?view=all">
+        <a class="ghost-button view-all-button" href={buildPageHref({ viewAll: true })}>
           {copy.viewAll} ({allCompletedOrders.length})
         </a>
       ) : null}
     </section>
+    ) : null}
 
-    {closedOrders.length ? (
+    {!isKitchenMode && closedOrders.length ? (
       <section class="orders-section secondary-section">
         <div class="orders-head">
           <div>
@@ -432,7 +516,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         </div>
         <div class="order-list">
           {closedOrders.map((order) => (
-            <a class:list={["card order-card", orderTone(order)]} href={`/admin/orders/${order.orderNo}${uiLang === "zh" ? "?ui=zh" : ""}`} data-order-id={order.id}>
+            <a class:list={["card order-card", orderTone(order)]} href={orderDetailHref(order.orderNo)} data-order-id={order.id}>
               <span class="sr-only" data-status-group={statusGroup(order)} data-search={`${order.orderNo} ${order.customerName} ${order.phone} ${order.address}`}></span>
               <div class="order-main">
                 <div>
@@ -456,7 +540,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
           ))}
         </div>
         {hasMoreClosed ? (
-          <a class="ghost-button view-all-button" href="?view=all">
+          <a class="ghost-button view-all-button" href={buildPageHref({ viewAll: true })}>
             {copy.viewAll} ({allClosedOrders.length})
           </a>
         ) : null}
@@ -485,7 +569,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
       const copyNode = document.getElementById("admin-orders-copy");
       const storageKey = "sumi-ramen-order-alerts-enabled";
       const seenOrdersKey = "sumi-ramen-seen-orders";
-      const alertRefreshDelayMs = 10500;
+      const alertRefreshDelayMs = 5000;
 
       const copy = JSON.parse(copyNode?.textContent || "{}");
       const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
@@ -585,7 +669,7 @@ function queueActions(order: OrderRecord): QueueAction[] {
         if (pollTimer) return;
         pollTimer = window.setInterval(() => {
           void pollOrders();
-        }, 12000);
+        }, 5000);
         void pollOrders();
       };
 
@@ -964,6 +1048,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
     display: grid;
     gap: 14px;
   }
+  .kitchen-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
   .order-card {
     padding: 18px 20px;
     display: grid;
@@ -988,9 +1076,24 @@ function queueActions(order: OrderRecord): QueueAction[] {
     transform: translateY(-2px);
     border-color: rgba(45,108,223,.26);
   }
+  .kitchen-card {
+    align-content: start;
+    gap: 12px;
+    padding: 18px;
+    min-height: 100%;
+  }
+  .kitchen-card-top {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
   .order-preview {
     display: grid;
     gap: 10px;
+  }
+  .kitchen-preview {
+    gap: 8px;
   }
   .preview-item {
     display: grid;
@@ -1010,6 +1113,11 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .preview-copy {
     display: grid;
     gap: 4px;
+  }
+  .kitchen-preview-item {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding-top: 8px;
   }
   .preview-copy strong {
     font-size: 0.98rem;
@@ -1037,6 +1145,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
     font-size: 0.88rem;
     line-height: 1.45;
   }
+  .kitchen-addon {
+    padding-left: 0;
+    border-radius: 10px;
+  }
   .preview-more {
     margin: 0;
   }
@@ -1052,6 +1164,9 @@ function queueActions(order: OrderRecord): QueueAction[] {
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
+  }
+  .kitchen-actions {
+    margin-top: 4px;
   }
   .order-no {
     margin: 0 0 10px;
@@ -1076,6 +1191,10 @@ function queueActions(order: OrderRecord): QueueAction[] {
   .order-subcopy {
     margin: 8px 0 0;
     color: rgba(18,49,75,.64);
+  }
+  .kitchen-subcopy {
+    margin-top: 0;
+    font-size: 0.9rem;
   }
   .order-note {
     margin: 8px 0 0;
@@ -1214,9 +1333,34 @@ function queueActions(order: OrderRecord): QueueAction[] {
     color: rgba(18,49,75,.64);
     background: rgba(255,255,255,.96);
   }
+  @media (min-width: 820px) {
+    .order-toolbar {
+      position: sticky;
+      top: 14px;
+      z-index: 8;
+    }
+    .admin-shell[data-admin-mode="front"] .order-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+    .queue-action,
+    .detail-link,
+    .filter-tab,
+    .lang-button {
+      min-height: 44px;
+    }
+  }
+  @media (min-width: 1280px) {
+    .admin-shell[data-admin-mode="kitchen"] .kitchen-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
   @media (max-width: 760px) {
     .admin-shell {
       padding-top: 18px;
+    }
+    .kitchen-grid {
+      grid-template-columns: 1fr;
     }
     .page-copy,
     .orders-head,
