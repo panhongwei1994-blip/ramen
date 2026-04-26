@@ -1,12 +1,15 @@
 ---
+import AdminHeader from "@/components/admin/AdminHeader.astro";
 import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { getProductsFromD1, getCategoriesFromD1, getRuntimeEnv } from "@/lib/orders";
 import { formatPrice } from "@/data/site";
+import { getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
 
 export const prerender = false;
 
-const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
+const adminMode = getAdminModeFromUrl(Astro.url);
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 
 const products = await getProductsFromD1(runtimeEnv);
@@ -29,7 +32,13 @@ const copy = isZh
   ? {
       title: "菜品管理",
       subtitle: "管理菜单价格、库存及上架状态。",
-      back: "返回订单页",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
       thName: "菜品名称",
       thCategory: "分类",
       thPrice: "价格",
@@ -45,11 +54,25 @@ const copy = isZh
       unlimited: "不限",
       updateSuccess: "更新成功",
       updateError: "更新失败",
+      statusUpdated: "状态已更新",
+      addProduct: "+ 添加菜品",
+      addProductTitle: "添加新菜品",
+      addProductSuccess: "菜品已添加",
+      addProductError: "添加失败",
+      imageUrl: "图片链接",
+      description: "描述",
+      inventoryHint: "库存（不限留空）",
     }
   : {
       title: "Product Management",
       subtitle: "Manage menu prices, inventory, and availability.",
-      back: "Back to Orders",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
       thName: "Name",
       thCategory: "Category",
       thPrice: "Price",
@@ -65,27 +88,45 @@ const copy = isZh
       unlimited: "Unlimited",
       updateSuccess: "Updated",
       updateError: "Failed",
+      statusUpdated: "Status updated",
+      addProduct: "+ Add Product",
+      addProductTitle: "Add New Product",
+      addProductSuccess: "Product added",
+      addProductError: "Failed to add",
+      imageUrl: "Image URL",
+      description: "Description",
+      inventoryHint: "Inventory (leave blank for unlimited)",
     };
 ---
 
 <AdminLayout lang={uiLang} title={isZh ? "菜品管理 | Sumi Ramen" : "Products | Sumi Ramen Admin"}>
   <section class="container admin-shell">
-    <div class="page-head">
-      <div>
-        <p class="eyebrow">Admin</p>
-        <h1 class="section-title">{copy.title}</h1>
-        <p class="section-copy">{copy.subtitle}</p>
-      </div>
-      <div class="head-actions">
-        <select id="cat-filter" class="admin-select">
-          <option value="all">{copy.allCats}</option>
-          {categories.map(c => <option value={c.id}>{c.name}</option>)}
-        </select>
-        <button type="button" class="primary-button" id="open-add-modal">
-          {isZh ? "+ 添加菜品" : "+ Add Product"}
-        </button>
-        <a class="ghost-button" href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.back}</a>
-      </div>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="products"
+      eyebrow="Admin"
+      title={copy.title}
+      copy={copy.subtitle}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+    />
+
+    <div class="product-toolbar card">
+      <select id="cat-filter" class="admin-select">
+        <option value="all">{copy.allCats}</option>
+        {categories.map(c => <option value={c.id}>{c.name}</option>)}
+      </select>
+      <button type="button" class="primary-button" id="open-add-modal">
+        {copy.addProduct}
+      </button>
     </div>
 
     <div class="card table-card">
@@ -147,14 +188,14 @@ const copy = isZh
     <div id="add-modal" class="admin-overlay hidden">
       <div class="admin-modal card">
         <div class="modal-head">
-          <h2>{isZh ? "添加新菜品" : "Add New Product"}</h2>
+          <h2>{copy.addProductTitle}</h2>
           <button type="button" class="close-modal" id="close-add-modal">×</button>
         </div>
         <form id="add-product-form" class="admin-form">
           <div class="form-grid">
             <div class="form-field">
               <label>{copy.thName}</label>
-              <input type="text" name="name" required placeholder="例如: 豚骨拉面" />
+              <input type="text" name="name" required placeholder={isZh ? "例如：豚骨拉面" : "Example: Tokyo Tonkotsu"} />
             </div>
             <div class="form-field">
               <label>{copy.thCategory}</label>
@@ -167,15 +208,15 @@ const copy = isZh
               <input type="number" name="price" step="0.01" required placeholder="0.00" />
             </div>
             <div class="form-field">
-              <label>{copy.thInventory} ({copy.unlimited}: 空)</label>
+              <label>{copy.inventoryHint}</label>
               <input type="number" name="inventoryCount" placeholder="∞" />
             </div>
             <div class="form-field wide">
-              <label>{isZh ? "图片链接" : "Image URL"}</label>
+              <label>{copy.imageUrl}</label>
               <input type="url" name="imageUrl" required placeholder="https://..." />
             </div>
             <div class="form-field wide">
-              <label>{isZh ? "描述" : "Description"}</label>
+              <label>{copy.description}</label>
               <textarea name="description" rows="2" placeholder={isZh ? "简单描述一下这道菜..." : "Short description..."}></textarea>
             </div>
           </div>
@@ -192,9 +233,31 @@ const copy = isZh
 </AdminLayout>
 
 <script is:inline>
+  const uiLang = new URLSearchParams(window.location.search).get("ui") === "zh" ? "zh" : "en";
   const tbody = document.getElementById("product-tbody");
   const filter = document.getElementById("cat-filter");
   const toast = document.getElementById("notice-toast");
+  const copy = uiLang === "zh"
+    ? {
+        saved: "更新成功",
+        error: "更新失败",
+        statusUpdated: "状态已更新",
+        productAdded: "菜品已添加",
+        addFailed: "添加失败",
+        available: "上架中",
+        unavailable: "已下架",
+        unlimited: "不限",
+      }
+    : {
+        saved: "Updated",
+        error: "Failed",
+        statusUpdated: "Status updated",
+        productAdded: "Product added",
+        addFailed: "Failed to add",
+        available: "Available",
+        unavailable: "Unavailable",
+        unlimited: "Unlimited",
+      };
 
   function showToast(msg, type = "success") {
     if (!toast) return;
@@ -221,10 +284,14 @@ const copy = isZh
 
     if (e.target.classList.contains("edit-btn")) {
       row.classList.add("editing");
+      row.dataset.originalPrice = row.querySelector('[data-field="price"] input').value;
+      row.dataset.originalInventory = row.querySelector('[data-field="inventory"] input').value;
       row.querySelector(".edit-btn").classList.add("hidden");
       row.querySelector(".save-btn").classList.remove("hidden");
       row.querySelector(".cancel-btn").classList.remove("hidden");
     } else if (e.target.classList.contains("cancel-btn")) {
+      row.querySelector('[data-field="price"] input').value = row.dataset.originalPrice || "";
+      row.querySelector('[data-field="inventory"] input').value = row.dataset.originalInventory || "";
       row.classList.remove("editing");
       row.querySelector(".edit-btn").classList.remove("hidden");
       row.querySelector(".save-btn").classList.add("hidden");
@@ -242,11 +309,19 @@ const copy = isZh
           body: JSON.stringify({ price, inventoryCount }),
         });
         if (res.ok) {
-          showToast("Saved");
-          setTimeout(() => window.location.reload(), 500);
+          row.querySelector('[data-field="price"] .view-val').textContent = new Intl.NumberFormat(uiLang === "zh" ? "zh-CN" : "en-US", {
+            style: "currency",
+            currency: "USD",
+          }).format(price);
+          row.querySelector('[data-field="inventory"] .view-val').textContent = inventoryCount === null ? copy.unlimited : String(inventoryCount);
+          row.classList.remove("editing");
+          row.querySelector(".edit-btn").classList.remove("hidden");
+          row.querySelector(".save-btn").classList.add("hidden");
+          row.querySelector(".cancel-btn").classList.add("hidden");
+          showToast(copy.saved);
         }
       } catch (err) {
-        showToast("Error", "error");
+        showToast(copy.error, "error");
       }
     } else if (e.target.classList.contains("status-btn")) {
       const id = row.dataset.id;
@@ -260,11 +335,13 @@ const copy = isZh
           body: JSON.stringify({ isAvailable: next }),
         });
         if (res.ok) {
-          showToast("Status Updated");
-          setTimeout(() => window.location.reload(), 500);
+          e.target.dataset.available = next ? "1" : "0";
+          e.target.classList.toggle("active", next);
+          e.target.textContent = next ? copy.available : copy.unavailable;
+          showToast(copy.statusUpdated);
         }
       } catch (err) {
-        showToast("Error", "error");
+        showToast(copy.error, "error");
       }
     }
   });
@@ -290,14 +367,14 @@ const copy = isZh
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        showToast("Product Added!");
+        showToast(copy.productAdded);
         setTimeout(() => window.location.reload(), 800);
       } else {
         const err = await res.json();
-        showToast(err.error || "Failed to add", "error");
+        showToast(err.error || copy.addFailed, "error");
       }
     } catch (err) {
-      showToast("Error", "error");
+      showToast(copy.error, "error");
     }
   });
 </script>
@@ -313,16 +390,16 @@ const copy = isZh
   .admin-shell :global(.section-copy) {
     color: var(--admin-muted);
   }
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 32px;
-  }
-  .head-actions {
+  .product-toolbar {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(45,108,223,.12);
+    box-shadow: 0 12px 34px rgba(15,76,153,.06);
   }
   .table-card {
     background: white;

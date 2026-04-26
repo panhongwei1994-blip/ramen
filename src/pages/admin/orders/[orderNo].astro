@@ -1,12 +1,15 @@
 ---
+import AdminHeader from "@/components/admin/AdminHeader.astro";
 import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { formatPrice } from "@/data/site";
 import { getOrderByOrderNo, getPaymentByOrderId, getRuntimeEnv, getOrderLogsFromD1 } from "@/lib/orders";
+import { buildAdminHref, getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
 
 export const prerender = false;
 
-const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
+const adminMode = getAdminModeFromUrl(Astro.url);
 const orderNo = Astro.params.orderNo ?? "";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const order = orderNo ? await getOrderByOrderNo(orderNo, runtimeEnv) : null;
@@ -28,13 +31,11 @@ for (const log of logs) {
 }
 timeline.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // Newest first
 
-const makeLangHref = (lang: "en" | "zh") => {
-  const params = new URLSearchParams(Astro.url.searchParams);
-  if (lang === "zh") params.set("ui", "zh");
-  else params.delete("ui");
-  const query = params.toString();
-  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
-};
+const ordersBackHref = buildAdminHref("/admin/orders", Astro.url.searchParams, {
+  lang: uiLang,
+  mode: adminMode,
+  viewAll: false,
+});
 
 if (!order) {
   Astro.response.status = 404;
@@ -84,6 +85,11 @@ const copy = isZh
       updating: "更新中...",
       updated: "订单已更新",
       requestFailed: "请求失败",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
       actionAccept: "接单",
       actionCooking: "开始制作",
       actionDelivery: "标记备好",
@@ -122,6 +128,11 @@ const copy = isZh
       updating: "Updating order...",
       updated: "Order updated.",
       requestFailed: "Request failed.",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
       actionAccept: "Accept",
       actionCooking: "Start preparing",
       actionDelivery: "Mark ready",
@@ -203,20 +214,26 @@ function formatDate(value: string) {
 
 <AdminLayout lang={uiLang} title={order ? `${order.orderNo} | Sumi Ramen Admin` : "Order | Sumi Ramen Admin"}>
   <section class="container admin-shell" data-order-no={order?.orderNo ?? ""} data-ui-lang={uiLang}>
-    <div class="page-head">
-      <div class="page-copy">
-        <p class="eyebrow">{copy.pageEyebrow}</p>
-        <h1 class="section-title">{order ? order.orderNo : copy.pageMissing}</h1>
-        <p class="section-copy">{copy.pageCopy}</p>
-      </div>
-      <div class="page-head-actions">
-        <div class="admin-lang-switch">
-          <a class:list={["lang-button", { active: uiLang === "en" }]} href={makeLangHref("en")}>{copy.langEn}</a>
-          <a class:list={["lang-button", { active: uiLang === "zh" }]} href={makeLangHref("zh")}>{copy.langZh}</a>
-        </div>
-        <a class="ghost-button back-button" href={`/admin/orders${uiLang === "zh" ? "?ui=zh" : ""}`}>{copy.back}</a>
-      </div>
-    </div>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="orders"
+      eyebrow={copy.pageEyebrow}
+      title={order ? order.orderNo : copy.pageMissing}
+      copy={copy.pageCopy}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      compact
+    >
+      <a slot="actions" class="ghost-button back-button" href={ordersBackHref}>{copy.back}</a>
+    </AdminHeader>
 
     {order ? (
       <>
@@ -393,50 +410,6 @@ function formatDate(value: string) {
     padding: 32px 0 88px;
     color: #12314b;
   }
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    align-items: end;
-    margin-bottom: 24px;
-  }
-  .page-head-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .admin-lang-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px;
-    border-radius: 999px;
-    border: 1px solid rgba(45,108,223,.14);
-    background: #ffffff;
-  }
-  .lang-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 38px;
-    padding: 0 12px;
-    border-radius: 999px;
-    color: rgba(18,49,75,.68);
-    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-  .lang-button.active {
-    background: rgba(45,108,223,.08);
-    color: #174ea6;
-  }
-  .page-copy {
-    max-width: 48rem;
-  }
-  .page-copy .section-copy,
   .hero-copy p,
   .line-item p,
   .timeline-item span {
@@ -660,7 +633,6 @@ function formatDate(value: string) {
     font-size: 1.5rem;
   }
   @media (max-width: 960px) {
-    .page-head,
     .hero-panel,
     .detail-grid {
       display: grid;

@@ -1,13 +1,15 @@
 ---
+import AdminHeader from "@/components/admin/AdminHeader.astro";
 import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { formatPrice } from "@/data/site";
 import { getRuntimeEnv, hasPersistentOrderStore, listOrders, type OrderRecord } from "@/lib/orders";
+import { buildAdminHref, buildOrderDetailHref, getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
 
 export const prerender = false;
 
-const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
-const adminMode = Astro.url.searchParams.get("mode") === "kitchen" ? "kitchen" : "front";
+const adminMode = getAdminModeFromUrl(Astro.url);
 const isKitchenMode = adminMode === "kitchen";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv);
@@ -15,31 +17,13 @@ const viewAll = Astro.url.searchParams.get("view") === "all";
 
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
-const buildPageHref = (overrides: { lang?: "en" | "zh"; mode?: "front" | "kitchen"; viewAll?: boolean } = {}) => {
-  const params = new URLSearchParams(Astro.url.searchParams);
-  const lang = overrides.lang ?? uiLang;
-  const mode = overrides.mode ?? adminMode;
-  const shouldViewAll = overrides.viewAll ?? viewAll;
-
-  if (lang === "zh") params.set("ui", "zh");
-  else params.delete("ui");
-  if (mode === "kitchen") params.set("mode", "kitchen");
-  else params.delete("mode");
-  if (shouldViewAll) params.set("view", "all");
-  else params.delete("view");
-
-  const query = params.toString();
-  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
-};
-const makeLangHref = (lang: "en" | "zh") => buildPageHref({ lang });
-const makeModeHref = (mode: "front" | "kitchen") => buildPageHref({ mode, viewAll: mode === "kitchen" ? false : viewAll });
-const orderDetailHref = (orderNo: string) => {
-  const params = new URLSearchParams();
-  if (isZh) params.set("ui", "zh");
-  if (isKitchenMode) params.set("mode", "kitchen");
-  const query = params.toString();
-  return `/admin/orders/${orderNo}${query ? `?${query}` : ""}`;
-};
+const buildPageHref = (overrides: { lang?: "en" | "zh"; mode?: "front" | "kitchen"; viewAll?: boolean } = {}) =>
+  buildAdminHref(Astro.url.pathname, Astro.url.searchParams, {
+    lang: overrides.lang ?? uiLang,
+    mode: overrides.mode ?? adminMode,
+    viewAll: overrides.viewAll ?? viewAll,
+  });
+const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: adminMode });
 const copy = isZh
   ? {
       pageEyebrow: "后台订单",
@@ -156,12 +140,14 @@ const processingStatuses = new Set(["paid_waiting_accept", "accepted", "cooking"
 const completedStatuses = new Set(["completed"]);
 const closedStatuses = new Set(["cancelled", "refunded"]);
 
-const sortOrdersByCreatedAt = (left: OrderRecord, right: OrderRecord) =>
+const sortOrdersByCreatedAtAsc = (left: OrderRecord, right: OrderRecord) =>
   new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+const sortOrdersByCreatedAtDesc = (left: OrderRecord, right: OrderRecord) =>
+  new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 
-const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
-const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
-const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAt);
+const processingOrders = orders.filter((order) => processingStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtAsc);
+const allCompletedOrders = orders.filter((order) => completedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtDesc);
+const allClosedOrders = orders.filter((order) => closedStatuses.has(order.orderStatus)).sort(sortOrdersByCreatedAtDesc);
 
 const completedOrders = viewAll ? allCompletedOrders : allCompletedOrders.slice(0, 5);
 const closedOrders = viewAll ? allClosedOrders : allClosedOrders.slice(0, 5);
@@ -287,31 +273,26 @@ function kitchenPrimaryActions(order: OrderRecord) {
 
 <AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sumi Ramen" : "Orders | Sumi Ramen Admin"}>
   <section class="container admin-shell" data-ui-lang={uiLang} data-admin-mode={adminMode}>
-    <nav class="admin-nav card">
-      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/orders") }]} href={buildPageHref({ viewAll: false })}>{copy.navOrders}</a>
-      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/products") }]} href={`/admin/products${isZh ? "?ui=zh" : ""}`}>{copy.navProducts}</a>
-      <a class:list={["nav-item", { active: Astro.url.pathname.includes("/admin/settings") }]} href={`/admin/settings${isZh ? "?ui=zh" : ""}`}>{copy.navSettings}</a>
-    </nav>
-
-    <div class="page-head">
-      <div>
-        <p class="eyebrow">{copy.pageEyebrow}</p>
-        <h1 class="section-title">{copy.pageTitle}</h1>
-        <p class="section-copy">{copy.pageCopy}</p>
-      </div>
-      <div class="alert-actions">
-        <div class="admin-lang-switch">
-          <a class:list={["lang-button", { active: uiLang === "en" }]} href={makeLangHref("en")}>{copy.langEn}</a>
-          <a class:list={["lang-button", { active: uiLang === "zh" }]} href={makeLangHref("zh")}>{copy.langZh}</a>
-        </div>
-        <div class="admin-lang-switch">
-          <a class:list={["lang-button", { active: !isKitchenMode }]} href={makeModeHref("front")}>{copy.modeFront}</a>
-          <a class:list={["lang-button", { active: isKitchenMode }]} href={makeModeHref("kitchen")}>{copy.modeKitchen}</a>
-        </div>
-        <button class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
-        <span class="alert-status" id="order-alert-status">{copy.alertOff}</span>
-      </div>
-    </div>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="orders"
+      eyebrow={copy.pageEyebrow}
+      title={copy.pageTitle}
+      copy={copy.pageCopy}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+    >
+      <button slot="actions" class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
+      <span slot="actions" class="alert-status" id="order-alert-status">{copy.alertOff}</span>
+    </AdminHeader>
 
     <div class="order-toolbar card" role="search">
       <div class="filter-tabs" aria-label="Order status filters">
@@ -598,7 +579,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
         updating: copy.updating,
         notifyTitle: copy.notifyTitle,
         confirmCancel: copy.confirmCancel,
-        allOrderIds: orders.map(o => o.id),
+        allOrderIds: processingOrders.map((order) => order.id),
       })}
     />
 
@@ -760,7 +741,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
         if (!alertsEnabled) return;
 
         try {
-          const response = await fetch("/api/admin/orders");
+          const response = await fetch("/api/admin/orders?summary=alerts");
           const data = await response.json();
           const orders = Array.isArray(data?.orders) ? data.orders : [];
           const alertableOrders = orders.filter(
@@ -880,55 +861,9 @@ function kitchenPrimaryActions(order: OrderRecord) {
   .admin-shell :global(.section-copy) {
     color: var(--admin-muted);
   }
-  .page-copy {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 18px 26px;
-    align-items: end;
-    margin-bottom: 28px;
-  }
-  .page-copy .section-copy {
-    max-width: 42rem;
-    margin: 0;
-    color: rgba(18,49,75,.72);
-  }
   .admin-eyebrow,
   .orders-eyebrow {
     color: #2d6cdf;
-  }
-  .alert-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .admin-lang-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px;
-    border-radius: 999px;
-    border: 1px solid rgba(45,108,223,.14);
-    background: #ffffff;
-  }
-  .lang-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 38px;
-    padding: 0 12px;
-    border-radius: 999px;
-    color: rgba(18,49,75,.68);
-    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-  .lang-button.active {
-    background: rgba(45,108,223,.08);
-    color: #174ea6;
   }
   .alert-toggle {
     display: inline-flex;
@@ -1032,46 +967,6 @@ function kitchenPrimaryActions(order: OrderRecord) {
   }
   .secondary-section {
     scroll-margin-top: 140px;
-  }
-  .admin-nav {
-    display: flex;
-    gap: 8px;
-    padding: 8px;
-    margin-bottom: 32px;
-    border-radius: 24px;
-    background: #ffffff;
-    border: 1px solid rgba(45,108,223,.12);
-    width: fit-content;
-    box-shadow: 0 16px 36px rgba(16,78,157,.08);
-  }
-  .nav-item {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 42px;
-    padding: 0 18px;
-    border-radius: 16px;
-    font-size: 0.8125rem;
-    font-weight: 800;
-    color: var(--admin-muted);
-    border: 1px solid transparent;
-    transition: all 0.2s;
-  }
-  .nav-item:hover {
-    color: var(--admin-accent);
-    background: rgba(45,108,223,.06);
-    border-color: rgba(45,108,223,.1);
-  }
-  .nav-item.active {
-    background: linear-gradient(135deg, #174ea6, #2d6cdf);
-    color: #ffffff;
-    box-shadow: 0 10px 22px rgba(45,108,223,.22);
-  }
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-    gap: 16px;
   }
   .orders-head {
     display: flex;
@@ -1405,7 +1300,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
     .queue-action,
     .detail-link,
     .filter-tab,
-    .lang-button {
+    .alert-toggle {
       min-height: 44px;
     }
   }
@@ -1423,13 +1318,11 @@ function kitchenPrimaryActions(order: OrderRecord) {
     }
     .page-copy,
     .orders-head,
-    .page-head,
     .order-toolbar,
     .order-main,
     .order-rail {
       display: grid;
     }
-    .admin-nav,
     .filter-tabs {
       width: 100%;
       overflow-x: auto;

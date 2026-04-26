@@ -1,11 +1,14 @@
 ---
-import BaseLayout from "@/components/layout/BaseLayout.astro";
+import AdminHeader from "@/components/admin/AdminHeader.astro";
+import AdminLayout from "@/components/layout/AdminLayout.astro";
 import { getSettingFromD1, getRuntimeEnv } from "@/lib/orders";
+import { getAdminLangFromUrl, getAdminModeFromUrl } from "@/lib/admin-links";
 
 export const prerender = false;
 
-const uiLang = Astro.url.searchParams.get("ui") === "zh" ? "zh" : "en";
+const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
+const adminMode = getAdminModeFromUrl(Astro.url);
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 
 const isOpenValue = await getSettingFromD1("is_open", runtimeEnv);
@@ -24,7 +27,13 @@ const copy = isZh
       saving: "保存中...",
       success: "设置已更新",
       error: "更新失败",
-      back: "返回订单页",
+      navOrders: "订单队列",
+      navProducts: "菜品管理",
+      navSettings: "店铺设置",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "前台模式",
+      modeKitchen: "后厨模式",
     }
   : {
       title: "Shop Settings",
@@ -38,20 +47,35 @@ const copy = isZh
       saving: "Saving...",
       success: "Settings updated",
       error: "Failed to update",
-      back: "Back to Orders",
+      navOrders: "Orders",
+      navProducts: "Products",
+      navSettings: "Settings",
+      langEn: "EN",
+      langZh: "中文",
+      modeFront: "Front mode",
+      modeKitchen: "Kitchen mode",
     };
 ---
 
-<BaseLayout lang={uiLang}>
+<AdminLayout lang={uiLang} title={isZh ? "店铺设置 | Sumi Ramen" : "Settings | Sumi Ramen Admin"}>
   <section class="container admin-shell">
-    <div class="page-head">
-      <div>
-        <p class="eyebrow">Admin</p>
-        <h1 class="section-title">{copy.title}</h1>
-        <p class="section-copy">{copy.subtitle}</p>
-      </div>
-      <a class="ghost-button" href={`/admin/orders${isZh ? "?ui=zh" : ""}`}>{copy.back}</a>
-    </div>
+    <AdminHeader
+      lang={uiLang}
+      mode={adminMode}
+      pathname={Astro.url.pathname}
+      searchParams={Astro.url.searchParams}
+      activeNav="settings"
+      eyebrow="Admin"
+      title={copy.title}
+      copy={copy.subtitle}
+      navLabels={{
+        orders: copy.navOrders,
+        products: copy.navProducts,
+        settings: copy.navSettings,
+      }}
+      langLabels={{ en: copy.langEn, zh: copy.langZh }}
+      modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+    />
 
     <div class="card settings-card">
       <div class="setting-row">
@@ -79,15 +103,33 @@ const copy = isZh
       </div>
     </div>
   </section>
-</BaseLayout>
+</AdminLayout>
 
 <script is:inline>
   const toggle = document.getElementById("status-toggle");
   const msg = document.getElementById("status-message");
+  const settingDesc = document.querySelector(".setting-info p");
+  const toggleLabel = toggle?.querySelector("span");
   const isZh = new URLSearchParams(window.location.search).get("ui") === "zh";
   const copy = isZh 
-    ? { saving: "保存中...", success: "设置已更新", error: "更新失败" }
-    : { saving: "Saving...", success: "Settings updated", error: "Failed to update" };
+    ? {
+        saving: "保存中...",
+        success: "设置已更新",
+        error: "更新失败",
+        open: "正在营业",
+        closed: "休息中",
+        openDesc: "客户可以正常浏览菜单并下单。",
+        closedDesc: "客户将看到休息提示，无法提交新订单。",
+      }
+    : {
+        saving: "Saving...",
+        success: "Settings updated",
+        error: "Failed to update",
+        open: "Open for Business",
+        closed: "Closed / On Break",
+        openDesc: "Customers can browse and place orders normally.",
+        closedDesc: "Customers will see a closed notice and cannot place orders.",
+      };
 
   toggle?.addEventListener("click", async () => {
     const current = toggle.dataset.current;
@@ -110,7 +152,14 @@ const copy = isZh
             msg.textContent = copy.success;
             msg.className = "status-msg success";
         }
-        setTimeout(() => window.location.reload(), 800);
+        toggle.dataset.current = next;
+        toggle.classList.toggle("active", next === "1");
+        if (toggleLabel) {
+          toggleLabel.textContent = next === "1" ? copy.open : copy.closed;
+        }
+        if (settingDesc) {
+          settingDesc.textContent = next === "1" ? copy.openDesc : copy.closedDesc;
+        }
       } else {
         throw new Error();
       }
@@ -124,12 +173,8 @@ const copy = isZh
 </script>
 
 <style>
-  :global(body) {
-    background: var(--admin-bg);
-    color: var(--admin-text);
-  }
   .admin-shell {
-    padding: 140px 0 88px;
+    padding: 32px 0 88px;
   }
   .admin-shell :global(.eyebrow) {
     color: var(--admin-gold);
@@ -137,12 +182,6 @@ const copy = isZh
   }
   .admin-shell :global(.section-copy) {
     color: var(--admin-muted);
-  }
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 32px;
   }
   .settings-card {
     padding: 32px;
@@ -219,18 +258,4 @@ const copy = isZh
   .status-msg.success { color: #10b981; }
   .status-msg.error { color: #ef4444; }
   .status-msg.info { color: #3b82f6; }
-
-  .ghost-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 46px;
-    padding: 0 22px;
-    border-radius: 999px;
-    background: white;
-    border: 1px solid rgba(45,108,223,.16);
-    color: #2d6cdf;
-    font-weight: 600;
-    text-decoration: none;
-  }
 </style>

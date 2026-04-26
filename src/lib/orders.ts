@@ -113,6 +113,11 @@ export type OrderRecord = {
   timeline: OrderLifecycleEvent[];
 };
 
+export type OrderAlertRecord = Pick<
+  OrderRecord,
+  "id" | "orderNo" | "paymentStatus" | "paymentMethod" | "orderStatus" | "createdAt"
+>;
+
 export type ProductRecord = {
   id: string;
   categoryId: string;
@@ -518,6 +523,28 @@ async function listOrdersFromD1(runtimeEnv?: RuntimeEnv) {
     .all<OrderRow>();
 
   return await Promise.all(result.results.map(async (row) => await rowToOrder(row, runtimeEnv)));
+}
+
+async function listOrderAlertsFromD1(runtimeEnv?: RuntimeEnv) {
+  const db = getDbBinding(runtimeEnv);
+  if (!db) return [];
+
+  const result = await db
+    .prepare(
+      `SELECT id, order_no, payment_status, payment_method, order_status, created_at
+       FROM orders
+       ORDER BY created_at DESC`,
+    )
+    .all<Pick<OrderRow, "id" | "order_no" | "payment_status" | "payment_method" | "order_status" | "created_at">>();
+
+  return result.results.map((row) => ({
+    id: row.id,
+    orderNo: row.order_no,
+    paymentStatus: row.payment_status,
+    paymentMethod: row.payment_method || "card",
+    orderStatus: row.order_status,
+    createdAt: row.created_at,
+  }));
 }
 
 async function saveOrderToD1(order: OrderRecord, runtimeEnv?: RuntimeEnv) {
@@ -1234,6 +1261,23 @@ export async function listOrders(runtimeEnv?: RuntimeEnv) {
   return kvOrders
     .filter((o): o is OrderRecord => !!o)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function listOrderAlerts(runtimeEnv?: RuntimeEnv) {
+  const d1Orders = await listOrderAlertsFromD1(runtimeEnv);
+  if (d1Orders.length > 0 || getDbBinding(runtimeEnv)) {
+    return d1Orders;
+  }
+
+  const orders = await listOrders(runtimeEnv);
+  return orders.map((order) => ({
+    id: order.id,
+    orderNo: order.orderNo,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    orderStatus: order.orderStatus,
+    createdAt: order.createdAt,
+  }));
 }
 
 export async function getPaymentByOrderId(orderId: string, runtimeEnv?: RuntimeEnv) {
