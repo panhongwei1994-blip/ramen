@@ -84,6 +84,16 @@ const copy = isZh
 function formatDate(value: string) {
   return new Date(value).toLocaleString(isZh ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
 }
+
+function phoneHref(value: string) {
+  const digits = value.replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : "";
+}
+
+function mapHref(value: string) {
+  const address = value.trim();
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "";
+}
 ---
 
 <AdminLayout lang={uiLang} title={isZh ? "配送模式 | Sora Ramen" : "Delivery Mode | Sora Ramen Admin"}>
@@ -131,11 +141,23 @@ function formatDate(value: string) {
             </p>
             <div class="delivery-block">
               <span>{copy.address}</span>
-              <strong>{order.address || "-"}</strong>
+              {order.address ? (
+                <a class="delivery-link" href={mapHref(order.address)} target="_blank" rel="noreferrer">
+                  {order.address}
+                </a>
+              ) : (
+                <strong>-</strong>
+              )}
             </div>
             <div class="delivery-block">
               <span>{copy.phone}</span>
-              <strong>{order.phone || "-"}</strong>
+              {order.phone ? (
+                <a class="delivery-link" href={phoneHref(order.phone)}>
+                  {order.phone}
+                </a>
+              ) : (
+                <strong>-</strong>
+              )}
             </div>
             <div class="delivery-block">
               <span>{copy.total}</span>
@@ -144,7 +166,7 @@ function formatDate(value: string) {
             <div class="delivery-actions">
               <a class="detail-link" href={orderDetailHref(order.orderNo)}>{copy.viewDetails}</a>
               <button
-                class="primary-button delivery-complete"
+                class="delivery-complete"
                 type="button"
                 data-endpoint="status"
                 data-payload='{"status":"completed","message":"Delivery completed."}'
@@ -315,10 +337,21 @@ function formatDate(value: string) {
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .delivery-block strong {
+  .delivery-block strong,
+  .delivery-link {
     color: #12314b;
     font-size: 1rem;
+    font-weight: 800;
     line-height: 1.5;
+  }
+  .delivery-link {
+    width: fit-content;
+    border-bottom: 1px solid rgba(45,108,223,.28);
+    color: #174ea6;
+  }
+  .delivery-link:hover {
+    color: #0f3d8a;
+    border-bottom-color: rgba(45,108,223,.5);
   }
   .delivery-actions {
     display: flex;
@@ -334,16 +367,26 @@ function formatDate(value: string) {
     min-height: 42px;
     padding: 0 14px;
     border-radius: 14px;
-    border: 1px solid rgba(218,165,32,.34);
-    background: rgba(255,213,92,.2);
-    color: #7a4f00;
     font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .detail-link:hover,
+  .detail-link {
+    border: 1px solid rgba(45,108,223,.16);
+    background: #ffffff;
+    color: #174ea6;
+  }
+  .delivery-complete {
+    border: 1px solid rgba(218,165,32,.36);
+    background: rgba(255,213,92,.24);
+    color: #7a4f00;
+  }
+  .detail-link:hover {
+    background: rgba(45,108,223,.06);
+    border-color: rgba(45,108,223,.28);
+  }
   .delivery-complete:hover {
     background: rgba(255,213,92,.32);
     border-color: rgba(218,165,32,.48);
@@ -361,6 +404,72 @@ function formatDate(value: string) {
   @media (max-width: 900px) {
     .delivery-grid {
       grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .admin-shell {
+      padding: 18px 0 72px;
+    }
+    .delivery-grid {
+      gap: 12px;
+    }
+    .delivery-card {
+      gap: 11px;
+      padding: 14px;
+      border-radius: 22px;
+    }
+    .delivery-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+    .delivery-pills {
+      max-width: 8.5rem;
+      gap: 6px;
+    }
+    .order-no {
+      margin-bottom: 7px;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+    .delivery-card h3 {
+      font-size: 1.3rem;
+    }
+    .status-pill,
+    .payment-pill {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+    .delivery-meta {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .delivery-block {
+      gap: 3px;
+    }
+    .delivery-block span {
+      font-size: 10px;
+    }
+    .delivery-block strong,
+    .delivery-link {
+      font-size: 0.98rem;
+      line-height: 1.42;
+    }
+    .delivery-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .detail-link,
+    .delivery-complete {
+      min-height: 46px;
+      padding: 0 10px;
+      border-radius: 16px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
     }
   }
 </style>
