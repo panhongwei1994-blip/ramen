@@ -11,6 +11,8 @@ const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
 const adminMode = getAdminModeFromUrl(Astro.url);
 const isKitchenMode = adminMode === "kitchen";
+const adminAuth = (Astro.locals as { adminAuth?: { role?: "admin" | "staff" } }).adminAuth;
+const canManageSettings = adminAuth?.role !== "staff";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv, { statuses: ACTIVE_ORDER_STATUSES });
 
@@ -340,22 +342,12 @@ function kitchenPrimaryActions(order: OrderRecord) {
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      canManageSettings={canManageSettings}
     >
       {!isKitchenMode ? <a slot="actions" class="ghost-button alert-toggle" href={historyHref}>{copy.historyButton}</a> : null}
       <button slot="actions" class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
       <span slot="actions" class="alert-status" id="order-alert-status">{copy.alertOff}</span>
     </AdminHeader>
-
-    <div class="order-toolbar card">
-      <div class="filter-tabs" aria-label="Order status filters">
-        {visibleFilterGroups.includes("all") ? <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button> : null}
-        {visibleFilterGroups.includes("new") ? <button class="filter-tab" type="button" data-filter="new">{copy.filterNew}</button> : null}
-        {visibleFilterGroups.includes("preparing") ? <button class="filter-tab" type="button" data-filter="preparing">{copy.filterPreparing}</button> : null}
-        {visibleFilterGroups.includes("ready") ? <button class="filter-tab" type="button" data-filter="ready">{copy.filterReady}</button> : null}
-        {visibleFilterGroups.includes("completed") ? <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button> : null}
-        {visibleFilterGroups.includes("cancelled") ? <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button> : null}
-      </div>
-    </div>
 
     {!hasPersistentStore ? (
       <div class="storage-warning card">
@@ -525,6 +517,17 @@ function kitchenPrimaryActions(order: OrderRecord) {
         <div class="card table-empty">{isKitchenMode ? copy.kitchenEmpty : copy.noProcessing}</div>
       )}
     </section>
+
+    <div class="order-toolbar card">
+      <div class="filter-tabs" aria-label="Order status filters">
+        {visibleFilterGroups.includes("all") ? <button class="filter-tab active" type="button" data-filter="all">{copy.filterAll}</button> : null}
+        {visibleFilterGroups.includes("new") ? <button class="filter-tab" type="button" data-filter="new">{copy.filterNew}</button> : null}
+        {visibleFilterGroups.includes("preparing") ? <button class="filter-tab" type="button" data-filter="preparing">{copy.filterPreparing}</button> : null}
+        {visibleFilterGroups.includes("ready") ? <button class="filter-tab" type="button" data-filter="ready">{copy.filterReady}</button> : null}
+        {visibleFilterGroups.includes("completed") ? <button class="filter-tab" type="button" data-filter="completed">{copy.filterCompleted}</button> : null}
+        {visibleFilterGroups.includes("cancelled") ? <button class="filter-tab" type="button" data-filter="cancelled">{copy.filterCancelled}</button> : null}
+      </div>
+    </div>
 
     <div class="order-search-panel card" role="search">
       <label class="order-search">
@@ -921,7 +924,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
     justify-content: space-between;
     gap: 14px;
     align-items: center;
-    margin: 22px 0 24px;
+    margin: 18px 0 0;
     padding: 10px;
     background: #ffffff;
     border: 1px solid rgba(45,108,223,.12);
@@ -1362,11 +1365,6 @@ function kitchenPrimaryActions(order: OrderRecord) {
     background: rgba(255,255,255,.96);
   }
   @media (min-width: 820px) {
-    .order-toolbar {
-      position: sticky;
-      top: 14px;
-      z-index: 8;
-    }
     .admin-shell[data-admin-mode="front"] .order-list {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       align-items: start;

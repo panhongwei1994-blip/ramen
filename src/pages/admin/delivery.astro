@@ -10,6 +10,8 @@ export const prerender = false;
 const uiLang = getAdminLangFromUrl(Astro.url);
 const isZh = uiLang === "zh";
 const adminMode = getAdminModeFromUrl(Astro.url);
+const adminAuth = (Astro.locals as { adminAuth?: { role?: "admin" | "staff" } }).adminAuth;
+const canManageSettings = adminAuth?.role !== "staff";
 const runtimeEnv = getRuntimeEnv(Astro.locals);
 const orders = await listOrders(runtimeEnv, { statuses: ["delivering"] });
 const deliveryOrders = orders
@@ -115,6 +117,7 @@ function mapHref(value: string) {
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      canManageSettings={canManageSettings}
     >
       <a slot="actions" class="ghost-button back-button" href={queueHref}>{copy.backToQueue}</a>
     </AdminHeader>

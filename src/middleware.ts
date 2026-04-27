@@ -44,7 +44,7 @@ function hasExtension(pathname: string, extensions: Set<string>) {
 }
 
 function cachePolicyFor(pathname: string) {
-  if (pathname === "/sw.js" || pathname === "/manifest.webmanifest") {
+  if (pathname === "/sw.js" || pathname === "/manifest.webmanifest" || pathname === "/admin-manifest.webmanifest") {
     return "no-cache";
   }
 
@@ -63,31 +63,69 @@ function cachePolicyFor(pathname: string) {
   return "";
 }
 
-function isAuthorizedAdminRequest(request: Request, locals: unknown) {
-  const env = getRuntimeEnv(locals);
-  const password = env.ADMIN_PASSWORD?.trim();
-  const username = env.ADMIN_USERNAME?.trim() || "admin";
+type AdminAuth = {
+  role: "admin" | "staff";
+  username: string;
+};
 
-  if (!password) {
-    return false;
-  }
-
+function parseBasicAuth(request: Request) {
   const header = request.headers.get("Authorization") ?? "";
   const [scheme, encoded] = header.split(" ");
-  if (scheme !== "Basic" || !encoded) {
-    return false;
-  }
+  if (scheme !== "Basic" || !encoded) return null;
 
   try {
     const decoded = atob(encoded);
     const separatorIndex = decoded.indexOf(":");
-    if (separatorIndex < 0) return false;
-    const givenUser = decoded.slice(0, separatorIndex);
-    const givenPassword = decoded.slice(separatorIndex + 1);
-    return givenUser === username && givenPassword === password;
+    if (separatorIndex < 0) return null;
+    return {
+      username: decoded.slice(0, separatorIndex),
+      password: decoded.slice(separatorIndex + 1),
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+function authenticateAdminRequest(request: Request, locals: unknown): AdminAuth | null {
+  const env = getRuntimeEnv(locals);
+  const adminPassword = env.ADMIN_PASSWORD?.trim();
+  const adminUsername = env.ADMIN_USERNAME?.trim() || "admin";
+  const staffUsername = env.STAFF_USERNAME?.trim() || "ser1";
+  const staffPassword = env.STAFF_PASSWORD?.trim() || "12345";
+  const credentials = parseBasicAuth(request);
+
+  if (!credentials) {
+    return null;
+  }
+
+  if (adminPassword && credentials.username === adminUsername && credentials.password === adminPassword) {
+    return { role: "admin", username: adminUsername };
+  }
+
+  if (credentials.username === staffUsername && credentials.password === staffPassword) {
+    return { role: "staff", username: staffUsername };
+  }
+
+  return null;
+}
+
+function forbidden() {
+  return new Response("This staff account cannot access this admin area.", { status: 403 });
+}
+
+function staffKitchenRedirect(url: URL) {
+  const nextUrl = new URL(url);
+  nextUrl.pathname = "/admin/orders";
+  nextUrl.searchParams.set("mode", "kitchen");
+  return Response.redirect(nextUrl.toString(), 302);
+}
+
+function isStaffForbiddenPath(pathname: string) {
+  if (pathname === "/admin/settings" || pathname.startsWith("/admin/products")) return true;
+  if (pathname.startsWith("/admin/orders/history")) return true;
+  if (pathname.startsWith("/api/admin/settings") || pathname.startsWith("/api/admin/products")) return true;
+  if (pathname.endsWith("/accept") && pathname.startsWith("/api/admin/orders/")) return true;
+  return false;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -97,8 +135,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return Response.redirect(`${canonicalOrigin}${url.pathname}${url.search}`, 301);
   }
 
-  if (isAdminRequest(url.pathname) && !isAuthorizedAdminRequest(context.request, context.locals)) {
-    return unauthorized();
+  if (isAdminRequest(url.pathname)) {
+    const auth = authenticateAdminRequest(context.request, context.locals);
+    if (!auth) {
+      return unauthorized();
+    }
+
+    (context.locals as { adminAuth?: AdminAuth }).adminAuth = auth;
+
+    if (auth.role === "staff") {
+      if (isStaffForbiddenPath(url.pathname)) {
+        return forbidden();
+      }
+      if (url.pathname === "/admin/orders" && url.searchParams.get("mode") !== "kitchen") {
+        return staffKitchenRedirect(url);
+      }
+    }
   }
 
   const response = await next();

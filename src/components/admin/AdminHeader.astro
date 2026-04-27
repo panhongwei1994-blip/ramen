@@ -25,6 +25,7 @@ interface Props {
     kitchen: string;
   };
   compact?: boolean;
+  canManageSettings?: boolean;
 }
 
 const {
@@ -40,6 +41,7 @@ const {
   langLabels = { en: "EN", zh: "中文" },
   modeLabels = { front: "Front mode", kitchen: "Kitchen mode" },
   compact = false,
+  canManageSettings = true,
 } = Astro.props;
 
 const frontOrdersHref = buildAdminHref("/admin/orders", searchParams, { lang, mode: "front", viewAll: false });
@@ -52,7 +54,9 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
 
 <div class="admin-header-shell">
   <nav class="admin-nav card">
-    <a class:list={["nav-item", { active: activeNav === "orders" && mode === "front" }]} href={frontOrdersHref}>{modeLabels.front}</a>
+    {canManageSettings ? (
+      <a class:list={["nav-item", { active: activeNav === "orders" && mode === "front" }]} href={frontOrdersHref}>{modeLabels.front}</a>
+    ) : null}
     <a class:list={["nav-item", { active: activeNav === "orders" && mode === "kitchen" }]} href={kitchenHref}>{modeLabels.kitchen}</a>
     <a class:list={["nav-item", { active: activeNav === "delivery" }]} href={deliveryHref}>{navLabels.delivery ?? "Delivery"}</a>
   </nav>
@@ -64,7 +68,9 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
       <p class="section-copy">{copy}</p>
     </div>
     <div class="header-actions">
-      <a class:list={["header-shortcut", { active: activeNav === "settings" || activeNav === "products" }]} href={settingsHref}>{navLabels.settings}</a>
+      {canManageSettings ? (
+        <a class:list={["header-shortcut", { active: activeNav === "settings" || activeNav === "products" }]} href={settingsHref}>{navLabels.settings}</a>
+      ) : null}
       <div class="admin-lang-switch">
         <a class:list={["lang-button", { active: lang === "en" }]} href={langEnHref}>{langLabels.en}</a>
         <a class:list={["lang-button", { active: lang === "zh" }]} href={langZhHref}>{langLabels.zh}</a>
@@ -196,7 +202,7 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
     .admin-nav {
       width: 100%;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
       gap: 6px;
     }
     .nav-item {
