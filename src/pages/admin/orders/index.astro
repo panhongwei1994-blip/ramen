@@ -17,7 +17,6 @@ const orders = await listOrders(runtimeEnv, { statuses: ACTIVE_ORDER_STATUSES })
 const hasPersistentStore = hasPersistentOrderStore(runtimeEnv);
 const format = (value: number) => formatPrice(value, "en");
 const historyHref = buildAdminHref("/admin/orders/history", Astro.url.searchParams, { lang: uiLang, mode: adminMode, viewAll: false });
-const deliveryHref = buildAdminHref("/admin/delivery", Astro.url.searchParams, { lang: uiLang, mode: "front", viewAll: false });
 const orderDetailHref = (orderNo: string) => buildOrderDetailHref(orderNo, { lang: uiLang, mode: adminMode });
 const copy = isZh
   ? {
@@ -53,6 +52,19 @@ const copy = isZh
       actionComplete: "完成",
       historyButton: "历史订单",
       deliveryButton: "外送完成",
+      frontCashPending: "现金待接单",
+      frontDeliveryPaidPending: "外送已付款待出餐",
+      frontDeliveryUnpaidPending: "外送未付款待接单",
+      frontPickupPaidPending: "自取已付款待出餐",
+      frontPickupUnpaidPending: "自取未付款待接单",
+      frontDeliveryCookingPaid: "外送已付款出餐中",
+      frontDeliveryCookingUnpaid: "外送未付款出餐中",
+      frontPickupCookingPaid: "自取已付款出餐中",
+      frontPickupCookingUnpaid: "自取未付款出餐中",
+      frontDeliveryOnRoutePaid: "外送已付款配送中",
+      frontDeliveryOnRouteUnpaid: "外送未付款配送中",
+      frontPickupReadyPaid: "自取已付款待完成",
+      frontPickupReadyUnpaid: "自取未付款待完成",
       cash: "现金",
       card: "卡支付",
       navOrders: "订单队列",
@@ -106,6 +118,19 @@ const copy = isZh
       actionComplete: "Complete",
       historyButton: "Order history",
       deliveryButton: "Delivery board",
+      frontCashPending: "Cash awaiting acceptance",
+      frontDeliveryPaidPending: "Delivery paid and waiting for prep",
+      frontDeliveryUnpaidPending: "Delivery unpaid and waiting for acceptance",
+      frontPickupPaidPending: "Pickup paid and waiting for prep",
+      frontPickupUnpaidPending: "Pickup unpaid and waiting for acceptance",
+      frontDeliveryCookingPaid: "Delivery paid and in prep",
+      frontDeliveryCookingUnpaid: "Delivery unpaid and in prep",
+      frontPickupCookingPaid: "Pickup paid and in prep",
+      frontPickupCookingUnpaid: "Pickup unpaid and in prep",
+      frontDeliveryOnRoutePaid: "Delivery paid and on the way",
+      frontDeliveryOnRouteUnpaid: "Delivery unpaid and on the way",
+      frontPickupReadyPaid: "Pickup paid and waiting to complete",
+      frontPickupReadyUnpaid: "Pickup unpaid and waiting to complete",
       cash: "Cash",
       card: "Card",
       navOrders: "Orders",
@@ -216,11 +241,33 @@ function formatPreviewQuantity(quantity: number, subtotal: number) {
 }
 
 function orderTone(order: OrderRecord) {
-  if (order.orderStatus === "pending_payment" || order.orderStatus === "paid_waiting_accept") return "urgent";
+  if (order.orderStatus === "pending_payment") return "urgent";
+  if (order.orderStatus === "paid_waiting_accept" && order.paymentStatus === "paid") return "paid-queue";
+  if (order.orderStatus === "paid_waiting_accept") return "urgent";
   if (order.orderStatus === "accepted" || order.orderStatus === "cooking" || order.orderStatus === "delivering") return "active";
   if (order.orderStatus === "completed") return "done";
   if (order.orderStatus === "cancelled" || order.orderStatus === "refunded") return "muted";
   return "neutral";
+}
+
+function frontQueueHeadline(order: OrderRecord) {
+  const paid = order.paymentStatus === "paid";
+  if (order.orderStatus === "paid_waiting_accept") {
+    if (order.paymentMethod === "cash" && !paid) {
+      return order.fulfillment === "delivery" ? copy.frontDeliveryUnpaidPending : copy.frontCashPending;
+    }
+    if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryPaidPending : copy.frontDeliveryUnpaidPending;
+    return paid ? copy.frontPickupPaidPending : copy.frontPickupUnpaidPending;
+  }
+  if (order.orderStatus === "accepted" || order.orderStatus === "cooking") {
+    if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryCookingPaid : copy.frontDeliveryCookingUnpaid;
+    return paid ? copy.frontPickupCookingPaid : copy.frontPickupCookingUnpaid;
+  }
+  if (order.orderStatus === "delivering") {
+    if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryOnRoutePaid : copy.frontDeliveryOnRouteUnpaid;
+    return paid ? copy.frontPickupReadyPaid : copy.frontPickupReadyUnpaid;
+  }
+  return "";
 }
 
 function queueActions(order: OrderRecord): QueueAction[] {
@@ -279,13 +326,14 @@ function kitchenPrimaryActions(order: OrderRecord) {
       navLabels={{
         orders: copy.navOrders,
         products: copy.navProducts,
+        delivery: copy.deliveryButton,
         settings: copy.navSettings,
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      showDeliveryNav={!isKitchenMode}
     >
       {!isKitchenMode ? <a slot="actions" class="ghost-button alert-toggle" href={historyHref}>{copy.historyButton}</a> : null}
-      {!isKitchenMode ? <a slot="actions" class="ghost-button alert-toggle" href={deliveryHref}>{copy.deliveryButton}</a> : null}
       <button slot="actions" class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
       <span slot="actions" class="alert-status" id="order-alert-status">{copy.alertOff}</span>
     </AdminHeader>
@@ -405,6 +453,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
                     <div class="order-main">
                       <div>
                         <p class="order-no">{order.orderNo}</p>
+                        <p class:list={["front-queue-headline", orderTone(order)]}>{frontQueueHeadline(order)}</p>
                         <h3>
                           <span>{order.customerName || copy.guest}</span>
                           <small>{addressPreview(order)}</small>
@@ -1061,6 +1110,38 @@ function kitchenPrimaryActions(order: OrderRecord) {
     margin: 0 0 10px;
     color: #2d6cdf;
   }
+  .front-queue-headline {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    margin: 0 0 10px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.18);
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .front-queue-headline.urgent {
+    background: rgba(207,69,72,.1);
+    border-color: rgba(207,69,72,.18);
+    color: #b42318;
+  }
+  .front-queue-headline.paid-queue,
+  .front-queue-headline.active {
+    background: rgba(45,108,223,.1);
+    border-color: rgba(45,108,223,.18);
+    color: #174ea6;
+  }
+  .front-queue-headline.done {
+    background: rgba(77,168,126,.12);
+    border-color: rgba(77,168,126,.2);
+    color: #1b6f42;
+  }
   .order-card h3 {
     margin: 0;
     font-size: 1.55rem;
@@ -1130,6 +1211,13 @@ function kitchenPrimaryActions(order: OrderRecord) {
     border-color: rgba(45,108,223,.22);
     background:
       linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.98)),
+      #ffffff;
+  }
+  .status-pill.paid-queue,
+  .order-card.paid-queue {
+    border-color: rgba(45,108,223,.26);
+    background:
+      linear-gradient(180deg, rgba(241,247,255,.99), rgba(255,255,255,.98)),
       #ffffff;
   }
   .status-pill.done,

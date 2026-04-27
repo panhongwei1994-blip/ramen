@@ -221,13 +221,20 @@ const schema = getRestaurantSchema(siteUrl.toString(), lang);
       const syncHeaderWithMenu = () => {
         const menu = document.getElementById("order-menu");
         const categoryRow = document.querySelector(".category-row");
+        const siteHeader = document.querySelector(".site-header");
         if (!menu && !categoryRow) return false;
+
+        if (siteHeader instanceof HTMLElement) {
+          const headerHeight = Math.ceil(siteHeader.getBoundingClientRect().height);
+          document.documentElement.style.setProperty("--site-header-offset", `${headerHeight + 18}px`);
+        }
 
         const target = categoryRow instanceof HTMLElement ? categoryRow : menu;
         if (!(target instanceof HTMLElement)) return false;
 
         const rect = target.getBoundingClientRect();
-        const menuActive = rect.top <= 124 && rect.bottom > 96;
+        const headerBottom = siteHeader instanceof HTMLElement ? siteHeader.getBoundingClientRect().bottom : 96;
+        const menuActive = rect.top <= headerBottom + 20 && rect.bottom > headerBottom - 8;
         document.body.dataset.menuFocus = menuActive ? "true" : "false";
         return true;
       };

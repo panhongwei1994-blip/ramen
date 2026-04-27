@@ -6,13 +6,14 @@ interface Props {
   mode: AdminMode;
   pathname: string;
   searchParams: URLSearchParams;
-  activeNav: "orders" | "products" | "settings";
+  activeNav: "orders" | "products" | "settings" | "delivery";
   eyebrow: string;
   title: string;
   copy: string;
   navLabels: {
     orders: string;
     products: string;
+    delivery?: string;
     settings: string;
   };
   langLabels?: {
@@ -24,6 +25,7 @@ interface Props {
     kitchen: string;
   };
   compact?: boolean;
+  showDeliveryNav?: boolean;
 }
 
 const {
@@ -39,11 +41,13 @@ const {
   langLabels = { en: "EN", zh: "中文" },
   modeLabels = { front: "Front mode", kitchen: "Kitchen mode" },
   compact = false,
+  showDeliveryNav = false,
 } = Astro.props;
 
 const ordersHref = buildAdminHref("/admin/orders", searchParams, { lang, mode, viewAll: false });
 const productsHref = buildAdminHref("/admin/products", searchParams, { lang, mode, viewAll: false });
 const settingsHref = buildAdminHref("/admin/settings", searchParams, { lang, mode, viewAll: false });
+const deliveryHref = buildAdminHref("/admin/delivery", searchParams, { lang, mode: "front", viewAll: false });
 const langEnHref = buildAdminHref(pathname, searchParams, { lang: "en", mode });
 const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
 const frontModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "front", viewAll: false });
@@ -54,7 +58,11 @@ const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "ki
   <nav class="admin-nav card">
     <a class:list={["nav-item", { active: activeNav === "orders" }]} href={ordersHref}>{navLabels.orders}</a>
     <a class:list={["nav-item", { active: activeNav === "products" }]} href={productsHref}>{navLabels.products}</a>
-    <a class:list={["nav-item", { active: activeNav === "settings" }]} href={settingsHref}>{navLabels.settings}</a>
+    {showDeliveryNav ? (
+      <a class:list={["nav-item", { active: activeNav === "delivery" }]} href={deliveryHref}>{navLabels.delivery ?? "Delivery"}</a>
+    ) : (
+      <a class:list={["nav-item", { active: activeNav === "settings" }]} href={settingsHref}>{navLabels.settings}</a>
+    )}
   </nav>
 
   <div class:list={["page-head", { compact }]}>
@@ -64,6 +72,9 @@ const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "ki
       <p class="section-copy">{copy}</p>
     </div>
     <div class="header-actions">
+      {showDeliveryNav ? (
+        <a class:list={["header-shortcut", { active: activeNav === "settings" }]} href={settingsHref}>{navLabels.settings}</a>
+      ) : null}
       <div class="admin-lang-switch">
         <a class:list={["lang-button", { active: lang === "en" }]} href={langEnHref}>{langLabels.en}</a>
         <a class:list={["lang-button", { active: lang === "zh" }]} href={langZhHref}>{langLabels.zh}</a>
@@ -140,6 +151,33 @@ const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "ki
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+  .header-shortcut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,108,223,.14);
+    background: #ffffff;
+    color: rgba(18,49,75,.68);
+    font-family: "Trebuchet MS", "Helvetica Neue", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .header-shortcut:hover {
+    color: #174ea6;
+    border-color: rgba(45,108,223,.24);
+    background: rgba(45,108,223,.04);
+  }
+  .header-shortcut.active {
+    background: rgba(45,108,223,.08);
+    color: #174ea6;
+    border-color: rgba(45,108,223,.18);
   }
   .admin-lang-switch {
     display: inline-flex;

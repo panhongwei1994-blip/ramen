@@ -85,17 +85,19 @@ function formatDate(value: string) {
       mode={adminMode}
       pathname={Astro.url.pathname}
       searchParams={Astro.url.searchParams}
-      activeNav="orders"
+      activeNav="delivery"
       eyebrow={copy.pageEyebrow}
       title={copy.pageTitle}
       copy={copy.pageCopy}
       navLabels={{
         orders: copy.navOrders,
         products: copy.navProducts,
+        delivery: copy.pageEyebrow,
         settings: copy.navSettings,
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      showDeliveryNav={true}
     >
       <a slot="actions" class="ghost-button back-button" href={queueHref}>{copy.backToQueue}</a>
     </AdminHeader>

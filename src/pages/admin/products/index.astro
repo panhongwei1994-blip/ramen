@@ -113,10 +113,12 @@ const copy = isZh
       navLabels={{
         orders: copy.navOrders,
         products: copy.navProducts,
+        delivery: isZh ? "外送完成" : "Delivery board",
         settings: copy.navSettings,
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      showDeliveryNav={adminMode === "front"}
     />
 
     <div class="product-toolbar card">

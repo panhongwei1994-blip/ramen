@@ -71,10 +71,12 @@ const copy = isZh
       navLabels={{
         orders: copy.navOrders,
         products: copy.navProducts,
+        delivery: isZh ? "外送完成" : "Delivery board",
         settings: copy.navSettings,
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
+      showDeliveryNav={adminMode === "front"}
     />
 
     <div class="card settings-card">
@@ -89,8 +91,12 @@ const copy = isZh
             class:list={["status-toggle", { active: isOpen }]}
             id="status-toggle"
             data-current={isOpen ? "1" : "0"}
+            role="switch"
+            aria-checked={isOpen ? "true" : "false"}
           >
-            <div class="toggle-track">
+            <div class="toggle-track" aria-hidden="true">
+              <span class="toggle-text toggle-text-off">OFF</span>
+              <span class="toggle-text toggle-text-on">ON</span>
               <div class="toggle-thumb"></div>
             </div>
             <span>{isOpen ? copy.statusOpen : copy.statusClosed}</span>
@@ -154,6 +160,7 @@ const copy = isZh
         }
         toggle.dataset.current = next;
         toggle.classList.toggle("active", next === "1");
+        toggle.setAttribute("aria-checked", next === "1" ? "true" : "false");
         if (toggleLabel) {
           toggleLabel.textContent = next === "1" ? copy.open : copy.closed;
         }
@@ -223,28 +230,54 @@ const copy = isZh
     color: #2d6cdf;
   }
   .toggle-track {
-    width: 40px;
-    height: 20px;
+    width: 62px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
     background: #cbd5e1;
     border-radius: 999px;
     position: relative;
     transition: background 0.2s;
+    overflow: hidden;
   }
   .active .toggle-track {
     background: #2d6cdf;
   }
+  .toggle-text {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,.9);
+    position: relative;
+    z-index: 1;
+  }
+  .toggle-text-off {
+    color: #475569;
+  }
+  .active .toggle-text-off {
+    color: rgba(255,255,255,.54);
+  }
+  .toggle-text-on {
+    color: rgba(255,255,255,.54);
+  }
+  .active .toggle-text-on {
+    color: #ffffff;
+  }
   .toggle-thumb {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     background: white;
     border-radius: 50%;
     position: absolute;
     top: 2px;
     left: 2px;
     transition: transform 0.2s;
+    box-shadow: 0 4px 10px rgba(15,23,42,.18);
   }
   .active .toggle-thumb {
-    transform: translateX(20px);
+    transform: translateX(34px);
   }
   .settings-footer {
     margin-top: 24px;
