@@ -1,0 +1,22 @@
+{
+  "name": "Sora Ramen Admin",
+  "short_name": "Sora Admin",
+  "description": "Staff order, kitchen, delivery, and shop management for Sora Ramen.",
+  "start_url": "/admin/orders",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#f8fbff",
+  "theme_color": "#f8fbff",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

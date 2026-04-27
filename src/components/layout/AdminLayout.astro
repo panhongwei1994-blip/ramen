@@ -20,9 +20,35 @@ const description = Astro.props.description ?? "Staff order management for Sora 
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f8fbff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Sora Admin" />
+    <link rel="manifest" href="/admin-manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   </head>
   <body class="admin-body">
     <slot />
+    <script is:inline>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+
+      window.__soraAdminInstallPrompt = null;
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        window.__soraAdminInstallPrompt = event;
+      });
+
+      window.installSoraAdminApp = async () => {
+        const promptEvent = window.__soraAdminInstallPrompt;
+        if (!promptEvent) return { status: "manual" };
+        promptEvent.prompt();
+        const choice = await promptEvent.userChoice.catch(() => ({ outcome: "dismissed" }));
+        window.__soraAdminInstallPrompt = null;
+        return { status: choice.outcome === "accepted" ? "accepted" : "dismissed" };
+      };
+    </script>
   </body>
 </html>
 
