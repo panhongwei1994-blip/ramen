@@ -22,8 +22,8 @@ export const siteContent = {
     lang: "en",
     locale: "en-US",
     currency: "USD",
-    brand: "Sumi Ramen",
-    metaTitle: "Sumi Ramen | Tokyo-Style Ramen Bar",
+    brand: "Sora Ramen",
+    metaTitle: "Sora Ramen | Tokyo-Style Ramen Bar",
     metaDescription:
       "Late-night Japanese ramen with slow-simmered broth, springy noodles, crisp small plates, and fast checkout.",
     heroBadge: "Slow-simmered broth. Fast hands. Open until the early hours.",
@@ -104,7 +104,7 @@ export const siteContent = {
     ],
     locationAddress: "241 Noren Alley, San Francisco, CA 94107",
     phoneLabel: "+1 (415) 555-0188",
-    email: "hello@sumiramen.com",
+    email: "hello@soraramen.com",
     hoursWeek: "Mon-Thu, Sun · 11:30-01:00",
     hoursWeekend: "Fri-Sat · 11:30-02:00",
     footerHeading: "Broth-forward ramen with the pace of a modern noodle bar.",
@@ -121,8 +121,8 @@ export const siteContent = {
     lang: "zh",
     locale: "zh-CN",
     currency: "USD",
-    brand: "Sumi Ramen",
-    metaTitle: "Sumi Ramen | 东京风格拉面店",
+    brand: "Sora Ramen",
+    metaTitle: "Sora Ramen | 东京风格拉面店",
     metaDescription:
       "深夜日式拉面，慢火熬制的高汤，劲道的面条，酥脆的小食，快速结账。",
     heroBadge: "慢火熬制。快捷出餐。营业至凌晨。",
@@ -203,7 +203,7 @@ export const siteContent = {
     ],
     locationAddress: "241 Noren Alley, San Francisco, CA 94107",
     phoneLabel: "+1 (415) 555-0188",
-    email: "hello@sumiramen.com",
+    email: "hello@soraramen.com",
     hoursWeek: "周一至周四，周日 · 11:30-01:00",
     hoursWeekend: "周五至周六 · 11:30-02:00",
     footerHeading: "以汤为本的拉面，现代面馆的高效节奏。",
@@ -213,7 +213,7 @@ export const siteContent = {
       "营业至深夜",
     ],
     footerStory:
-      "Sumi Ramen 将东京小巷的活力与纯净的数字订单流相结合，让食物保持浓郁口感的同时，结账流程依然迅速。",
+      "Sora Ramen 将东京小巷的活力与纯净的数字订单流相结合，让食物保持浓郁口感的同时，结账流程依然迅速。",
     footerLinks: ["深夜博多拉面", "饺子套餐", "到店自取", "深夜外送"],
   },
 } as const;

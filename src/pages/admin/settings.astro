@@ -57,7 +57,7 @@ const copy = isZh
     };
 ---
 
-<AdminLayout lang={uiLang} title={isZh ? "店铺设置 | Sumi Ramen" : "Settings | Sumi Ramen Admin"}>
+<AdminLayout lang={uiLang} title={isZh ? "店铺设置 | Sora Ramen" : "Settings | Sora Ramen Admin"}>
   <section class="container admin-shell">
     <AdminHeader
       lang={uiLang}
@@ -71,7 +71,7 @@ const copy = isZh
       navLabels={{
         orders: copy.navOrders,
         products: copy.navProducts,
-        delivery: isZh ? "外送完成" : "Delivery board",
+        delivery: isZh ? "配送看板" : "Delivery queue",
         settings: copy.navSettings,
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}

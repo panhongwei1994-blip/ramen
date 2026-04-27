@@ -21,9 +21,9 @@ const format = (value: number) => formatPrice(value, "en");
 
 const copy = isZh
   ? {
-      pageEyebrow: "外送完成",
+      pageEyebrow: "配送看板",
       pageTitle: "配送中订单",
-      pageCopy: "这个页面只给外送人员或前台收尾使用。后厨出餐结束后，外卖单在这里确认送达完成。",
+      pageCopy: "配送员在这里处理正在配送的外卖单，并确认送达完成。",
       langEn: "EN",
       langZh: "中文",
       modeFront: "前台模式",
@@ -34,6 +34,10 @@ const copy = isZh
       backToQueue: "返回订单",
       noOrders: "当前没有配送中的外卖订单。",
       delivering: "配送中",
+      paid: "已付款",
+      unpaid: "未付款",
+      cash: "现金",
+      card: "卡支付",
       markDelivered: "确认送达",
       delivery: "外送",
       items: "件菜品",
@@ -47,9 +51,9 @@ const copy = isZh
       viewDetails: "查看详情",
     }
   : {
-      pageEyebrow: "Delivery Board",
+      pageEyebrow: "Delivery Queue",
       pageTitle: "Orders Out for Delivery",
-      pageCopy: "This board is for couriers or the front desk to close delivery orders after the kitchen has already handed them off.",
+      pageCopy: "Couriers use this page to handle delivery orders in transit and mark them delivered.",
       langEn: "EN",
       langZh: "中文",
       modeFront: "Front mode",
@@ -60,6 +64,10 @@ const copy = isZh
       backToQueue: "Back to orders",
       noOrders: "No delivery orders are currently in transit.",
       delivering: "Delivering",
+      paid: "Paid",
+      unpaid: "Unpaid",
+      cash: "Cash",
+      card: "Card",
       markDelivered: "Mark delivered",
       delivery: "Delivery",
       items: "items",
@@ -78,7 +86,7 @@ function formatDate(value: string) {
 }
 ---
 
-<AdminLayout lang={uiLang} title={isZh ? "外送完成 | Sumi Ramen" : "Delivery Board | Sumi Ramen Admin"}>
+<AdminLayout lang={uiLang} title={isZh ? "配送看板 | Sora Ramen" : "Delivery Queue | Sora Ramen Admin"}>
   <section class="container admin-shell" data-ui-lang={uiLang}>
     <AdminHeader
       lang={uiLang}
@@ -111,9 +119,16 @@ function formatDate(value: string) {
                 <p class="order-no">{order.orderNo}</p>
                 <h3>{order.customerName || copy.guest}</h3>
               </div>
-              <span class="status-pill">{copy.delivering}</span>
+              <div class="delivery-pills">
+                <span class="status-pill">{copy.delivering}</span>
+                <span class:list={["payment-pill", order.paymentStatus === "paid" ? "paid" : "unpaid"]}>
+                  {order.paymentStatus === "paid" ? copy.paid : copy.unpaid}
+                </span>
+              </div>
             </div>
-            <p class="delivery-meta">{copy.delivery} · {order.items.length} {copy.items} · {formatDate(order.createdAt)}</p>
+            <p class="delivery-meta">
+              {copy.delivery} · {order.paymentMethod === "cash" ? copy.cash : copy.card} · {order.items.length} {copy.items} · {formatDate(order.createdAt)}
+            </p>
             <div class="delivery-block">
               <span>{copy.address}</span>
               <strong>{order.address || "-"}</strong>
@@ -231,6 +246,12 @@ function formatDate(value: string) {
     justify-content: space-between;
     gap: 12px;
   }
+  .delivery-pills {
+    display: flex;
+    justify-content: end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
   .order-no {
     margin: 0 0 10px;
     color: #2d6cdf;
@@ -245,7 +266,8 @@ function formatDate(value: string) {
     font-size: 1.5rem;
     line-height: 1.02;
   }
-  .status-pill {
+  .status-pill,
+  .payment-pill {
     display: inline-flex;
     align-items: center;
     min-height: 38px;
@@ -259,6 +281,16 @@ function formatDate(value: string) {
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+  }
+  .payment-pill.paid {
+    background: rgba(77,168,126,.14);
+    border-color: rgba(77,168,126,.26);
+    color: #17633b;
+  }
+  .payment-pill.unpaid {
+    background: rgba(207,69,72,.12);
+    border-color: rgba(207,69,72,.24);
+    color: #b42318;
   }
   .delivery-meta {
     margin: 0;

@@ -1,4 +1,4 @@
-# Sumi Ramen MVP
+# Sora Ramen MVP
 
 Astro + Cloudflare Workers + Stripe single-store food delivery MVP.
 

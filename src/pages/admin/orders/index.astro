@@ -51,7 +51,7 @@ const copy = isZh
       actionDelivery: "标记备好",
       actionComplete: "完成",
       historyButton: "历史订单",
-      deliveryButton: "外送完成",
+      deliveryButton: "配送看板",
       frontCashPending: "现金待接单",
       frontDeliveryPaidPending: "外送已付款待出餐",
       frontDeliveryUnpaidPending: "外送未付款待接单",
@@ -117,7 +117,7 @@ const copy = isZh
       actionDelivery: "Mark ready",
       actionComplete: "Complete",
       historyButton: "Order history",
-      deliveryButton: "Delivery board",
+      deliveryButton: "Delivery queue",
       frontCashPending: "Cash awaiting acceptance",
       frontDeliveryPaidPending: "Delivery paid and waiting for prep",
       frontDeliveryUnpaidPending: "Delivery unpaid and waiting for acceptance",
@@ -312,7 +312,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
 }
 ---
 
-<AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sumi Ramen" : "Orders | Sumi Ramen Admin"}>
+<AdminLayout lang={uiLang} title={isZh ? "订单后台 | Sora Ramen" : "Orders | Sora Ramen Admin"}>
   <section class="container admin-shell" data-ui-lang={uiLang} data-admin-mode={adminMode}>
     <AdminHeader
       lang={uiLang}
@@ -1184,6 +1184,9 @@ function kitchenPrimaryActions(order: OrderRecord) {
     white-space: nowrap;
     color: #174ea6;
   }
+  .admin-shell[data-admin-mode="front"] .order-card:not(.kitchen-card) {
+    position: relative;
+  }
   .status-pill,
   .payment-pill {
     display: inline-flex;
@@ -1341,9 +1344,7 @@ function kitchenPrimaryActions(order: OrderRecord) {
     }
     .page-copy,
     .orders-head,
-    .order-toolbar,
-    .order-main,
-    .order-rail {
+    .order-toolbar {
       display: grid;
     }
     .filter-tabs {
@@ -1355,14 +1356,117 @@ function kitchenPrimaryActions(order: OrderRecord) {
     .order-search {
       max-width: none;
     }
-    .order-total {
-      width: fit-content;
+    .admin-shell[data-admin-mode="front"] .order-card:not(.kitchen-card) {
+      gap: 11px;
+      padding: 14px;
+      border-radius: 24px;
     }
-    .order-actions {
+    .admin-shell[data-admin-mode="front"] .order-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 10px;
+      align-items: start;
+    }
+    .admin-shell[data-admin-mode="front"] .order-main > div:first-child {
+      min-width: 0;
+    }
+    .admin-shell[data-admin-mode="front"] .order-no {
+      margin-bottom: 8px;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+    }
+    .admin-shell[data-admin-mode="front"] .front-queue-headline {
+      min-height: 28px;
+      max-width: 100%;
+      margin-bottom: 8px;
+      padding: 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .admin-shell[data-admin-mode="front"] .order-card h3 {
+      font-size: 1.28rem;
+      gap: 6px;
+    }
+    .admin-shell[data-admin-mode="front"] .order-card h3 small {
+      max-width: 8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.82rem;
+    }
+    .admin-shell[data-admin-mode="front"] .order-subcopy {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .admin-shell[data-admin-mode="front"] .order-total {
+      width: fit-content;
+      justify-self: end;
+      grid-column: 2;
+      grid-row: 1;
+      padding: 10px 12px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+    }
+    .admin-shell[data-admin-mode="front"] .order-preview {
+      gap: 7px;
+    }
+    .admin-shell[data-admin-mode="front"] .preview-item {
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 10px;
+      padding-top: 8px;
+    }
+    .admin-shell[data-admin-mode="front"] .preview-item img {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+    }
+    .admin-shell[data-admin-mode="front"] .preview-copy strong {
+      font-size: 0.95rem;
+    }
+    .admin-shell[data-admin-mode="front"] .preview-copy span,
+    .admin-shell[data-admin-mode="front"] .preview-more {
+      font-size: 0.86rem;
+    }
+    .admin-shell[data-admin-mode="front"] .order-rail {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .admin-shell[data-admin-mode="front"] .status-pill,
+    .admin-shell[data-admin-mode="front"] .payment-pill,
+    .admin-shell[data-admin-mode="front"] .method-pill {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+    .admin-shell[data-admin-mode="front"] .order-actions {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+    .admin-shell[data-admin-mode="front"] .detail-link,
+    .admin-shell[data-admin-mode="front"] .queue-action {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 44px;
+      padding: 0 8px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      white-space: normal;
+      line-height: 1.2;
+    }
+    .admin-shell[data-admin-mode="kitchen"] .order-actions {
       align-items: stretch;
     }
-    .detail-link,
-    .queue-action {
+    .admin-shell[data-admin-mode="kitchen"] .detail-link,
+    .admin-shell[data-admin-mode="kitchen"] .queue-action {
       flex: 1 1 100%;
       min-height: 48px;
     }

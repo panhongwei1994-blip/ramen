@@ -11,7 +11,7 @@ function unauthorized() {
   return new Response("Admin access requires a staff login.", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="Sumi Ramen Admin", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="Sora Ramen Admin", charset="UTF-8"',
     },
   });
 }
