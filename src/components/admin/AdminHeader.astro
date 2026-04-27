@@ -25,7 +25,6 @@ interface Props {
     kitchen: string;
   };
   compact?: boolean;
-  showDeliveryNav?: boolean;
 }
 
 const {
@@ -41,28 +40,21 @@ const {
   langLabels = { en: "EN", zh: "中文" },
   modeLabels = { front: "Front mode", kitchen: "Kitchen mode" },
   compact = false,
-  showDeliveryNav = false,
 } = Astro.props;
 
-const ordersHref = buildAdminHref("/admin/orders", searchParams, { lang, mode, viewAll: false });
-const productsHref = buildAdminHref("/admin/products", searchParams, { lang, mode, viewAll: false });
+const frontOrdersHref = buildAdminHref("/admin/orders", searchParams, { lang, mode: "front", viewAll: false });
 const settingsHref = buildAdminHref("/admin/settings", searchParams, { lang, mode, viewAll: false });
+const kitchenHref = buildAdminHref("/admin/orders", searchParams, { lang, mode: "kitchen", viewAll: false });
 const deliveryHref = buildAdminHref("/admin/delivery", searchParams, { lang, mode: "front", viewAll: false });
 const langEnHref = buildAdminHref(pathname, searchParams, { lang: "en", mode });
 const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
-const frontModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "front", viewAll: false });
-const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "kitchen", viewAll: false });
 ---
 
 <div class="admin-header-shell">
   <nav class="admin-nav card">
-    <a class:list={["nav-item", { active: activeNav === "orders" }]} href={ordersHref}>{navLabels.orders}</a>
-    <a class:list={["nav-item", { active: activeNav === "products" }]} href={productsHref}>{navLabels.products}</a>
-    {showDeliveryNav ? (
-      <a class:list={["nav-item", { active: activeNav === "delivery" }]} href={deliveryHref}>{navLabels.delivery ?? "Delivery"}</a>
-    ) : (
-      <a class:list={["nav-item", { active: activeNav === "settings" }]} href={settingsHref}>{navLabels.settings}</a>
-    )}
+    <a class:list={["nav-item", { active: activeNav === "orders" && mode === "front" }]} href={frontOrdersHref}>{modeLabels.front}</a>
+    <a class:list={["nav-item", { active: activeNav === "orders" && mode === "kitchen" }]} href={kitchenHref}>{modeLabels.kitchen}</a>
+    <a class:list={["nav-item", { active: activeNav === "delivery" }]} href={deliveryHref}>{navLabels.delivery ?? "Delivery"}</a>
   </nav>
 
   <div class:list={["page-head", { compact }]}>
@@ -72,16 +64,10 @@ const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "ki
       <p class="section-copy">{copy}</p>
     </div>
     <div class="header-actions">
-      {showDeliveryNav ? (
-        <a class:list={["header-shortcut", { active: activeNav === "settings" }]} href={settingsHref}>{navLabels.settings}</a>
-      ) : null}
+      <a class:list={["header-shortcut", { active: activeNav === "settings" || activeNav === "products" }]} href={settingsHref}>{navLabels.settings}</a>
       <div class="admin-lang-switch">
         <a class:list={["lang-button", { active: lang === "en" }]} href={langEnHref}>{langLabels.en}</a>
         <a class:list={["lang-button", { active: lang === "zh" }]} href={langZhHref}>{langLabels.zh}</a>
-      </div>
-      <div class="admin-lang-switch">
-        <a class:list={["lang-button", { active: mode === "front" }]} href={frontModeHref}>{modeLabels.front}</a>
-        <a class:list={["lang-button", { active: mode === "kitchen" }]} href={kitchenModeHref}>{modeLabels.kitchen}</a>
       </div>
       <slot name="actions" />
     </div>
@@ -209,9 +195,15 @@ const kitchenModeHref = buildAdminHref(pathname, searchParams, { lang, mode: "ki
   @media (max-width: 760px) {
     .admin-nav {
       width: 100%;
-      overflow-x: auto;
-      flex-wrap: nowrap;
-      justify-content: flex-start;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .nav-item {
+      min-height: 46px;
+      padding: 0 8px;
+      font-size: 0.78rem;
+      white-space: nowrap;
     }
     .page-head {
       display: grid;

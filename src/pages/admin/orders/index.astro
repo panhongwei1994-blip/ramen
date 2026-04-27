@@ -339,7 +339,6 @@ function kitchenPrimaryActions(order: OrderRecord) {
       }}
       langLabels={{ en: copy.langEn, zh: copy.langZh }}
       modeLabels={{ front: copy.modeFront, kitchen: copy.modeKitchen }}
-      showDeliveryNav={!isKitchenMode}
     >
       {!isKitchenMode ? <a slot="actions" class="ghost-button alert-toggle" href={historyHref}>{copy.historyButton}</a> : null}
       <button slot="actions" class="ghost-button alert-toggle" id="enable-order-alerts" type="button">{copy.alertButton}</button>
@@ -673,11 +672,18 @@ function kitchenPrimaryActions(order: OrderRecord) {
       const startAlertPolling = () => {
         setAlertsEnabled(true);
         setStatus(copy.alertOn);
+        if (document.hidden) return;
         if (pollTimer) return;
         pollTimer = window.setInterval(() => {
           void pollOrders();
         }, 5000);
         void pollOrders();
+      };
+
+      const pauseAlertPolling = () => {
+        if (!pollTimer) return;
+        window.clearInterval(pollTimer);
+        pollTimer = null;
       };
 
       const playOrderTone = () => {
@@ -763,6 +769,15 @@ function kitchenPrimaryActions(order: OrderRecord) {
       } catch {
         // Ignore storage failures.
       }
+
+      document.addEventListener("visibilitychange", () => {
+        if (!alertsEnabled) return;
+        if (document.hidden) {
+          pauseAlertPolling();
+          return;
+        }
+        startAlertPolling();
+      });
 
       document.addEventListener("click", async (event) => {
         const target = event.target instanceof Element ? event.target : null;
