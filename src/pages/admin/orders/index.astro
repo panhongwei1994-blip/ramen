@@ -51,12 +51,14 @@ const copy = isZh
       actionDelivery: "标记备好",
       actionComplete: "完成",
       historyButton: "历史订单",
-      deliveryButton: "配送看板",
+      deliveryButton: "配送模式",
       frontCashPending: "现金待接单",
       frontDeliveryPaidPending: "外送已付款待出餐",
       frontDeliveryUnpaidPending: "外送未付款待接单",
       frontPickupPaidPending: "自取已付款待出餐",
       frontPickupUnpaidPending: "自取未付款待接单",
+      frontDeliveryUnpaidAccepted: "外送未付款待出餐",
+      frontPickupUnpaidAccepted: "自取未付款待出餐",
       frontDeliveryCookingPaid: "外送已付款出餐中",
       frontDeliveryCookingUnpaid: "外送未付款出餐中",
       frontPickupCookingPaid: "自取已付款出餐中",
@@ -117,12 +119,14 @@ const copy = isZh
       actionDelivery: "Mark ready",
       actionComplete: "Complete",
       historyButton: "Order history",
-      deliveryButton: "Delivery queue",
+      deliveryButton: "Delivery mode",
       frontCashPending: "Cash awaiting acceptance",
       frontDeliveryPaidPending: "Delivery paid and waiting for prep",
       frontDeliveryUnpaidPending: "Delivery unpaid and waiting for acceptance",
       frontPickupPaidPending: "Pickup paid and waiting for prep",
       frontPickupUnpaidPending: "Pickup unpaid and waiting for acceptance",
+      frontDeliveryUnpaidAccepted: "Delivery unpaid and waiting for prep",
+      frontPickupUnpaidAccepted: "Pickup unpaid and waiting for prep",
       frontDeliveryCookingPaid: "Delivery paid and in prep",
       frontDeliveryCookingUnpaid: "Delivery unpaid and in prep",
       frontPickupCookingPaid: "Pickup paid and in prep",
@@ -259,7 +263,11 @@ function frontQueueHeadline(order: OrderRecord) {
     if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryPaidPending : copy.frontDeliveryUnpaidPending;
     return paid ? copy.frontPickupPaidPending : copy.frontPickupUnpaidPending;
   }
-  if (order.orderStatus === "accepted" || order.orderStatus === "cooking") {
+  if (order.orderStatus === "accepted") {
+    if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryPaidPending : copy.frontDeliveryUnpaidAccepted;
+    return paid ? copy.frontPickupPaidPending : copy.frontPickupUnpaidAccepted;
+  }
+  if (order.orderStatus === "cooking") {
     if (order.fulfillment === "delivery") return paid ? copy.frontDeliveryCookingPaid : copy.frontDeliveryCookingUnpaid;
     return paid ? copy.frontPickupCookingPaid : copy.frontPickupCookingUnpaid;
   }
