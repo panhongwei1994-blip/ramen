@@ -5,7 +5,7 @@ import { getCategoriesFromD1, getProductsFromD1, getRuntimeEnv, getSettingFromD1
 export const prerender = false;
 
 const STOREFRONT_HEADERS = {
-  "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300",
+  "Cache-Control": "public, max-age=60, s-maxage=180, stale-while-revalidate=600",
 };
 
 export const GET: APIRoute = async ({ locals }) => {

@@ -381,7 +381,7 @@ type CacheEntry<T> = {
   value: T;
 };
 
-const CATALOG_CACHE_TTL_MS = 60_000;
+const CATALOG_CACHE_TTL_MS = 300_000;
 const SETTINGS_CACHE_TTL_MS = 30_000;
 const ORDER_ALERTS_CACHE_TTL_MS = 5_000;
 
@@ -413,6 +413,13 @@ function invalidateOrderReadCache() {
   orderAlertsCache = null;
 }
 
+function optimizeLocalMenuImageUrl(imageUrl: string) {
+  if (imageUrl.startsWith("/ramen/") && imageUrl.endsWith(".png")) {
+    return imageUrl.replace(/\.png$/, "-768.jpg");
+  }
+  return imageUrl;
+}
+
 function parseJson<T>(value: string, fallback: T): T {
   try {
     return JSON.parse(value) as T;
@@ -427,7 +434,7 @@ function rowToOrderItem(row: OrderItemRow): OrderItemRecord {
     orderId: row.order_id,
     productId: row.product_id,
     productName: row.product_name,
-    imageUrl: row.image_url,
+    imageUrl: optimizeLocalMenuImageUrl(row.image_url),
     unitPrice: Number(row.unit_price),
     quantity: Number(row.quantity),
     subtotal: Number(row.subtotal),
@@ -962,7 +969,7 @@ export async function getProductsFromD1(runtimeEnv?: RuntimeEnv) {
     categoryId: row.category_id,
     name: row.name,
     description: row.description,
-    imageUrl: row.image_url,
+    imageUrl: optimizeLocalMenuImageUrl(row.image_url),
     price: row.price,
     isAvailable: row.is_available === 1,
     inventoryCount: row.inventory_count,
@@ -988,7 +995,7 @@ export async function getProductFromD1(productId: string, runtimeEnv?: RuntimeEn
     categoryId: row.category_id,
     name: row.name,
     description: row.description,
-    imageUrl: row.image_url,
+    imageUrl: optimizeLocalMenuImageUrl(row.image_url),
     price: row.price,
     isAvailable: row.is_available === 1,
     inventoryCount: row.inventory_count,
@@ -1343,7 +1350,7 @@ async function recalculateOrderItems(
       orderId,
       productId: product.id,
       productName: product.name,
-      imageUrl: product.imageUrl,
+      imageUrl: optimizeLocalMenuImageUrl(product.imageUrl),
       unitPrice,
       quantity: item.quantity,
       subtotal,

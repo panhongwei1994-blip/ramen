@@ -6,6 +6,20 @@ const legacyHosts = new Set([
   "ramen.panhongwei1994.workers.dev",
   "sora-site.panhongwei1994.workers.dev",
 ]);
+const longCacheExtensions = new Set([
+  ".avif",
+  ".css",
+  ".gif",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".js",
+  ".png",
+  ".svg",
+  ".webp",
+  ".woff",
+  ".woff2",
+]);
 
 function unauthorized() {
   return new Response("Admin access requires a staff login.", {
@@ -22,6 +36,31 @@ function getRuntimeEnv(locals: unknown) {
 
 function isAdminRequest(pathname: string) {
   return pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+}
+
+function hasExtension(pathname: string, extensions: Set<string>) {
+  const lowerPath = pathname.toLowerCase();
+  return Array.from(extensions).some((extension) => lowerPath.endsWith(extension));
+}
+
+function cachePolicyFor(pathname: string) {
+  if (pathname === "/sw.js" || pathname === "/manifest.webmanifest") {
+    return "no-cache";
+  }
+
+  if (pathname.startsWith("/api/") || pathname.startsWith("/admin")) {
+    return "no-store";
+  }
+
+  if (pathname.startsWith("/_astro/")) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  if (pathname.startsWith("/ramen/") || pathname.startsWith("/icons/") || hasExtension(pathname, longCacheExtensions)) {
+    return "public, max-age=2592000, stale-while-revalidate=604800";
+  }
+
+  return "";
 }
 
 function isAuthorizedAdminRequest(request: Request, locals: unknown) {
@@ -51,7 +90,7 @@ function isAuthorizedAdminRequest(request: Request, locals: unknown) {
   }
 }
 
-export const onRequest = defineMiddleware((context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
   const url = new URL(context.request.url);
 
   if (legacyHosts.has(url.hostname)) {
@@ -62,5 +101,15 @@ export const onRequest = defineMiddleware((context, next) => {
     return unauthorized();
   }
 
-  return next();
+  const response = await next();
+  const cachePolicy = cachePolicyFor(url.pathname);
+  if (!cachePolicy) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", cachePolicy);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 });
