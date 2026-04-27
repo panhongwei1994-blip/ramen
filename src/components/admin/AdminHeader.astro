@@ -12,7 +12,6 @@ interface Props {
   copy: string;
   navLabels: {
     orders: string;
-    products: string;
     delivery?: string;
     settings: string;
   };
@@ -50,6 +49,10 @@ const kitchenHref = buildAdminHref("/admin/orders", searchParams, { lang, mode: 
 const deliveryHref = buildAdminHref("/admin/delivery", searchParams, { lang, mode: "front", viewAll: false });
 const langEnHref = buildAdminHref(pathname, searchParams, { lang: "en", mode });
 const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
+const installLabel = lang === "zh" ? "安装后台" : "Install admin";
+const installManualLabel = lang === "zh"
+  ? "如果没有弹出安装窗口，请使用浏览器分享菜单添加到主屏幕。"
+  : "If no install prompt appears, use the browser share menu and add it to the home screen.";
 ---
 
 <div class="admin-header-shell">
@@ -71,6 +74,9 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
       {canManageSettings ? (
         <a class:list={["header-shortcut", { active: activeNav === "settings" || activeNav === "products" }]} href={settingsHref}>{navLabels.settings}</a>
       ) : null}
+      <button class="header-shortcut install-admin-trigger" type="button" data-install-admin data-manual-message={installManualLabel}>
+        {installLabel}
+      </button>
       <div class="admin-lang-switch">
         <a class:list={["lang-button", { active: lang === "en" }]} href={langEnHref}>{langLabels.en}</a>
         <a class:list={["lang-button", { active: lang === "zh" }]} href={langZhHref}>{langLabels.zh}</a>
@@ -79,6 +85,24 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
     </div>
   </div>
 </div>
+
+<script is:inline>
+  document.addEventListener("click", async (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest("[data-install-admin]") : null;
+    if (!(trigger instanceof HTMLButtonElement)) return;
+
+    const originalLabel = trigger.textContent || "";
+    const installer = window.installSoraAdminApp;
+    const result = typeof installer === "function" ? await installer() : { status: "manual" };
+
+    if (result.status !== "accepted") {
+      trigger.textContent = trigger.dataset.manualMessage || originalLabel;
+      window.setTimeout(() => {
+        trigger.textContent = originalLabel;
+      }, 4500);
+    }
+  });
+</script>
 
 <style>
   .admin-header-shell {
@@ -160,6 +184,12 @@ const langZhHref = buildAdminHref(pathname, searchParams, { lang: "zh", mode });
     letter-spacing: 0.1em;
     text-transform: uppercase;
     transition: all 0.2s;
+  }
+  button.header-shortcut {
+    cursor: pointer;
+  }
+  .install-admin-trigger {
+    max-width: min(72vw, 18rem);
   }
   .header-shortcut:hover {
     color: #174ea6;

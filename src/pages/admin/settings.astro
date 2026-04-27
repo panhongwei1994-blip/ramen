@@ -29,16 +29,10 @@ const copy = isZh
       success: "设置已更新",
       error: "更新失败",
       navOrders: "订单队列",
-      navProducts: "菜品管理",
       navSettings: "店铺设置",
       menuManagement: "菜品管理",
       menuManagementDesc: "修改菜单价格、库存和上下架状态。",
       openProducts: "进入菜品管理",
-      adminApp: "后台应用",
-      adminAppDesc: "把后台安装到手机主屏幕，方便员工快速打开。",
-      installAdminApp: "安装后台",
-      installManual: "如果没有弹出安装窗口，请使用浏览器分享菜单添加到主屏幕。",
-      installDone: "安装请求已发送",
       langEn: "EN",
       langZh: "中文",
       modeFront: "前台模式",
@@ -57,16 +51,10 @@ const copy = isZh
       success: "Settings updated",
       error: "Failed to update",
       navOrders: "Orders",
-      navProducts: "Products",
       navSettings: "Settings",
       menuManagement: "Product management",
       menuManagementDesc: "Update menu prices, stock, and availability.",
       openProducts: "Open products",
-      adminApp: "Admin app",
-      adminAppDesc: "Install the staff dashboard on the home screen for faster access.",
-      installAdminApp: "Install admin",
-      installManual: "If no install prompt appears, use the browser share menu and add it to the home screen.",
-      installDone: "Install request sent",
       langEn: "EN",
       langZh: "中文",
       modeFront: "Front mode",
@@ -87,7 +75,6 @@ const copy = isZh
       copy={copy.subtitle}
       navLabels={{
         orders: copy.navOrders,
-        products: copy.navProducts,
         delivery: isZh ? "配送模式" : "Delivery mode",
         settings: copy.navSettings,
       }}
@@ -132,15 +119,7 @@ const copy = isZh
         </div>
         <span>{copy.openProducts}</span>
       </a>
-      <div class="card settings-card management-card admin-install-card">
-        <div class="setting-info">
-          <h3>{copy.adminApp}</h3>
-          <p>{copy.adminAppDesc}</p>
-        </div>
-        <button type="button" id="install-admin-app">{copy.installAdminApp}</button>
-      </div>
     </div>
-    <p class="install-message" id="admin-install-message"></p>
   </section>
 </AdminLayout>
 
@@ -159,8 +138,6 @@ const copy = isZh
         closed: "休息中",
         openDesc: "客户可以正常浏览菜单并下单。",
         closedDesc: "客户将看到休息提示，无法提交新订单。",
-        installManual: "如果没有弹出安装窗口，请使用浏览器分享菜单添加到主屏幕。",
-        installDone: "安装请求已发送",
       }
     : {
         saving: "Saving...",
@@ -170,8 +147,6 @@ const copy = isZh
         closed: "Closed / On Break",
         openDesc: "Customers can browse and place orders normally.",
         closedDesc: "Customers will see a closed notice and cannot place orders.",
-        installManual: "If no install prompt appears, use the browser share menu and add it to the home screen.",
-        installDone: "Install request sent",
       };
 
   toggle?.addEventListener("click", async () => {
@@ -212,16 +187,6 @@ const copy = isZh
           msg.textContent = copy.error;
           msg.className = "status-msg error";
       }
-    }
-  });
-
-  const installButton = document.getElementById("install-admin-app");
-  const installMessage = document.getElementById("admin-install-message");
-  installButton?.addEventListener("click", async () => {
-    const installer = window.installSoraAdminApp;
-    const result = typeof installer === "function" ? await installer() : { status: "manual" };
-    if (installMessage) {
-      installMessage.textContent = result.status === "accepted" ? copy.installDone : copy.installManual;
     }
   });
 </script>
@@ -276,8 +241,7 @@ const copy = isZh
     border-color: rgba(45,108,223,.28);
     transform: translateY(-1px);
   }
-  .management-card span,
-  .management-card button {
+  .management-card span {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -292,15 +256,6 @@ const copy = isZh
     letter-spacing: .08em;
     text-transform: uppercase;
     white-space: nowrap;
-  }
-  .management-card button {
-    cursor: pointer;
-  }
-  .install-message {
-    margin: 14px 0 0;
-    color: rgba(18,49,75,.68);
-    font-size: .9rem;
-    font-weight: 700;
   }
   .status-toggle {
     display: flex;
